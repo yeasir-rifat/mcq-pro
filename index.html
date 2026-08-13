@@ -16,6 +16,13 @@
 <!-- DOMPurify (HTML sanitization for rich text) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 
+<!-- html2canvas (used directly and explicitly by pdf.js for reliable page
+     rasterization; jsPDF's built-in .html() helper bundles its own
+     internal copy but does not expose it, and its px/mm unit handling
+     is unreliable for our custom multi-page layout, so we drive
+     rasterization ourselves instead). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <!-- jsPDF (PDF generation) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -188,6 +195,17 @@ button {
   grid-template-columns: 40% 60%;
   height: calc(100vh - var(--header-h));
   min-height: 0;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* Give the shell breathing room from the browser edges on large desktop
+   screens instead of stretching the two panels edge-to-edge. */
+@media (min-width: 1025px) {
+  .app-shell {
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
 }
 
 .panel {
@@ -655,8 +673,10 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
 .question-card__number {
@@ -666,11 +686,14 @@ button {
   background: var(--primary-soft);
   padding: 4px 10px;
   border-radius: 999px;
+  flex-shrink: 0;
 }
 
 .question-card__controls {
   display: flex;
+  align-items: center;
   gap: 2px;
+  flex-wrap: wrap;
 }
 
 .qc-btn {
@@ -684,10 +707,40 @@ button {
   border-radius: 6px;
   transition: background var(--transition), color var(--transition);
   position: relative;
+  flex-shrink: 0;
 }
 .qc-btn i { width: 14px; height: 14px; }
 .qc-btn:hover { background: var(--bg); color: var(--text); }
 .qc-btn--danger:hover { background: var(--danger-soft); color: var(--danger); }
+
+/* Answer-options layout picker (vertical / horizontal / grid) */
+.layout-picker {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+.layout-picker .qc-btn {
+  width: 26px; height: 24px;
+  border-radius: 5px;
+}
+.layout-picker .qc-btn i { width: 13px; height: 13px; }
+.layout-picker .qc-btn.is-active {
+  background: var(--panel);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.qc-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
 
 .question-card__body {
   padding: 12px;
@@ -823,9 +876,14 @@ button {
 }
 
 .rt-dropdown { position: relative; }
+
+/* Math/symbol panel opens UPWARD, docked directly above the toolbar row,
+   so it always stays above the floated toolbar rather than dropping
+   below it (where it could be clipped by the viewport edge on short or
+   mobile screens). Horizontal position is clamped in JS on open. */
 .rt-dropdown__panel {
   position: absolute;
-  top: 36px;
+  bottom: calc(100% + 8px);
   left: 0;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -836,8 +894,14 @@ button {
   grid-template-columns: repeat(6, 1fr);
   gap: 2px;
   width: 220px;
-  max-height: 220px;
+  max-width: calc(100vw - 24px);
+  max-height: min(220px, 50vh);
   overflow-y: auto;
+  animation: rt-panel-in 120ms ease;
+}
+@keyframes rt-panel-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .rt-math-symbol {
   width: 32px; height: 32px;
@@ -850,6 +914,13 @@ button {
   transition: background var(--transition);
 }
 .rt-math-symbol:hover { background: var(--primary-soft); color: var(--primary); }
+
+@media (max-width: 480px) {
+  .rt-dropdown__panel {
+    grid-template-columns: repeat(5, 1fr);
+    width: 190px;
+  }
+}
 
 
 /* ===== css/preview.css ===== */
@@ -922,16 +993,46 @@ button {
 .paper-wrap {
   transition: transform var(--transition);
   transform-origin: top center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
 }
 
 /* The paper itself: dimensions are set dynamically via JS (page size),
-   this provides the visual "printed sheet" treatment. */
+   this provides the visual "printed sheet" treatment. Each physical
+   page of a multi-page document is its own .paper element. */
 .paper {
   background: #ffffff;
   box-shadow: var(--shadow-lg);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   padding: 18mm 16mm;
+  flex-shrink: 0;
+}
+
+/* Small floating page-number chip shown above each sheet, but only
+   when the document actually spans multiple pages (driven by the
+   .paper-wrap--multipage modifier set in JS). */
+.paper-wrap--multipage .paper[data-page]::before {
+  content: "Page " attr(data-page);
+  position: absolute;
+  top: -26px;
+  left: 0;
+  font-family: var(--font-ui-en);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+
+.doc__pagenum {
+  position: absolute;
+  bottom: 8mm;
+  right: 16mm;
+  font-size: 9pt;
+  color: #9CA3AF;
+  font-family: var(--font-ui-en);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1030,6 +1131,30 @@ button {
   flex-direction: column;
   gap: 4px;
   padding-left: 4px;
+}
+
+/* Vertical (default): a / b / c / d stacked, one per line. */
+.doc-options--vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Horizontal: a  b  c  d in a single row, wrapping if the page is narrow. */
+.doc-options--horizontal {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.doc-options--horizontal .doc-option { flex: 0 1 auto; }
+
+/* Rectangular / grid: a b
+                        c d   (2 columns x 2 rows) */
+.doc-options--grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 14px;
 }
 
 .doc-option {
@@ -1192,6 +1317,7 @@ button {
     display: none !important;
   }
 }
+
 
 
 </style>
@@ -1620,10 +1746,16 @@ const Utils = (() => {
 
 const State = (() => {
 
+  // Option layout for a question's answer choices in the preview/PDF:
+  //   'vertical'    -> a / b / c / d stacked in one column (default)
+  //   'horizontal'  -> a  b  c  d in a single row
+  //   'grid'        -> a b
+  //                    c d   (2x2 rectangular grid)
   function freshQuestion() {
     return {
       id: Utils.uid('q'),
       question: { html: '' },
+      optionsLayout: 'vertical',
       options: [
         { id: 'a', html: '' },
         { id: 'b', html: '' },
@@ -1637,6 +1769,7 @@ const State = (() => {
     return {
       id: Utils.uid('q'),
       question: { html: 'Which process is primarily responsible for the conversion of light energy into chemical energy in plants?' },
+      optionsLayout: 'vertical',
       options: [
         { id: 'a', html: 'Respiration' },
         { id: 'b', html: 'Photosynthesis' },
@@ -1751,11 +1884,17 @@ const State = (() => {
     if (opt) opt.html = html;
   }
 
+  /** Set the answer-option layout ('vertical' | 'horizontal' | 'grid') for one question. */
+  function setQuestionLayout(id, layout) {
+    const q = appState.questions.find(q => q.id === id);
+    if (q) q.optionsLayout = layout;
+  }
+
   return {
     get, replaceAll, resetToDefault, defaultState,
     setLanguage, setDocField, setSetting, setSetCodeField,
     addQuestion, deleteQuestion, duplicateQuestion, moveQuestion,
-    updateQuestionHtml, updateOptionHtml,
+    updateQuestionHtml, updateOptionHtml, setQuestionLayout,
     freshQuestion
   };
 })();
@@ -1824,10 +1963,18 @@ const Editor = (() => {
 
     const numLabel = Utils.formatQuestionNumber(index, lang);
 
+    const layout = q.optionsLayout || 'vertical';
+
     card.innerHTML = `
       <div class="question-card__head">
         <span class="question-card__number">${lang === 'bn' ? 'প্রশ্ন' : 'Question'} ${numLabel}</span>
         <div class="question-card__controls">
+          <div class="layout-picker" role="group" aria-label="Answer options layout">
+            <button type="button" class="qc-btn layout-btn${layout === 'vertical' ? ' is-active' : ''}" data-layout="vertical" aria-label="Vertical layout" title="Vertical (a / b / c / d)"><i data-lucide="rows-3"></i></button>
+            <button type="button" class="qc-btn layout-btn${layout === 'horizontal' ? ' is-active' : ''}" data-layout="horizontal" aria-label="Horizontal layout" title="Horizontal (a  b  c  d)"><i data-lucide="columns-3"></i></button>
+            <button type="button" class="qc-btn layout-btn${layout === 'grid' ? ' is-active' : ''}" data-layout="grid" aria-label="Rectangular grid layout" title="Rectangular (a b / c d)"><i data-lucide="grid-2x2"></i></button>
+          </div>
+          <span class="qc-divider" aria-hidden="true"></span>
           <button type="button" class="qc-btn" data-action="move-up" aria-label="Move question up" title="Move up"><i data-lucide="chevron-up"></i></button>
           <button type="button" class="qc-btn" data-action="move-down" aria-label="Move question down" title="Move down"><i data-lucide="chevron-down"></i></button>
           <button type="button" class="qc-btn" data-action="duplicate" aria-label="Duplicate question" title="Duplicate"><i data-lucide="copy"></i></button>
@@ -1856,8 +2003,17 @@ const Editor = (() => {
       optionsList.appendChild(buildOptionRow(q.id, opt, oi, lang));
     });
 
+    // Layout picker buttons
+    card.querySelectorAll('.layout-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        State.setQuestionLayout(q.id, btn.dataset.layout);
+        card.querySelectorAll('.layout-btn').forEach(b => b.classList.toggle('is-active', b === btn));
+        Preview.update();
+      });
+    });
+
     // Card-level control buttons
-    card.querySelectorAll('.qc-btn').forEach(btn => {
+    card.querySelectorAll('.qc-btn[data-action]').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.action;
         if (action === 'delete') { App.requestDeleteQuestion(q.id); return; }
@@ -1978,16 +2134,37 @@ const Editor = (() => {
 
   function showToolbarFor(el) {
     const toolbar = document.getElementById('rtToolbar');
-    const rect = el.getBoundingClientRect();
+
+    // Reveal first (off-measurable state) so getBoundingClientRect below
+    // reflects its real, current size (it wraps to multiple rows on
+    // narrow viewports, so a hardcoded height/width assumption breaks
+    // positioning on tablet/mobile).
     toolbar.hidden = false;
+    toolbar.style.left = '-9999px';
+    toolbar.style.top = '-9999px';
 
-    // Position above the editor if there's room, else below.
-    const toolbarHeight = 44;
-    let top = rect.top - toolbarHeight - 8;
-    if (top < 8) top = rect.bottom + 8;
-    let left = Utils.clamp(rect.left, 8, window.innerWidth - 380);
+    const margin = 8;
+    const editorRect = el.getBoundingClientRect();
+    const toolbarRect = toolbar.getBoundingClientRect();
+    const toolbarW = toolbarRect.width || 320;
+    const toolbarH = toolbarRect.height || 44;
 
-    toolbar.style.top = `${top + window.scrollY}px`;
+    // NOTE: the toolbar uses `position: fixed`, which is already
+    // relative to the viewport — do NOT add window.scrollY/scrollX here,
+    // that was the bug causing the toolbar to drift downward and off
+    // screen inside the scrollable left panel.
+    let top = editorRect.top - toolbarH - margin;
+    if (top < margin) {
+      // Not enough room above; place it below the editor instead.
+      top = editorRect.bottom + margin;
+    }
+    // Final safety clamp so the toolbar can never render fully off the
+    // bottom of a short/mobile viewport.
+    top = Utils.clamp(top, margin, window.innerHeight - toolbarH - margin);
+
+    let left = Utils.clamp(editorRect.left, margin, window.innerWidth - toolbarW - margin);
+
+    toolbar.style.top = `${top}px`;
     toolbar.style.left = `${left}px`;
   }
 
@@ -2024,6 +2201,23 @@ const Editor = (() => {
     activeEditorEl.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
+  /**
+   * The math panel is CSS-positioned to open upward (bottom: 100%) from
+   * its trigger button so it always stays above the floating toolbar
+   * (see spec: "not hide under the viewport"). This only handles the
+   * horizontal axis: reset any previous inline offset, measure, then
+   * nudge left if it would overflow the right edge of the viewport.
+   */
+  function positionMathPanel(panel) {
+    panel.style.left = '0px';
+    panel.style.right = 'auto';
+    const rect = panel.getBoundingClientRect();
+    const overflowRight = rect.right - (window.innerWidth - 8);
+    if (overflowRight > 0) {
+      panel.style.left = `${-overflowRight}px`;
+    }
+  }
+
   function buildMathPanel() {
     const panel = document.getElementById('rtMathPanel');
     panel.innerHTML = MATH_SYMBOLS.map(sym =>
@@ -2056,12 +2250,28 @@ const Editor = (() => {
     const mathPanel = document.getElementById('rtMathPanel');
     mathBtn.addEventListener('mousedown', (e) => e.preventDefault());
     mathBtn.addEventListener('click', () => {
-      mathPanel.hidden = !mathPanel.hidden;
+      const willOpen = mathPanel.hidden;
+      mathPanel.hidden = !willOpen;
+      if (willOpen) positionMathPanel(mathPanel);
     });
 
     document.addEventListener('click', (e) => {
       const dropdown = document.getElementById('rtMathDropdown');
       if (dropdown && !dropdown.contains(e.target)) mathPanel.hidden = true;
+    });
+
+    // Keep the floating toolbar correctly clamped on resize/orientation
+    // change/scroll (e.g. rotating a tablet, or scrolling the left panel
+    // while an editor is still focused) instead of leaving it wherever
+    // it was first placed.
+    const reposition = Utils.debounce(() => {
+      const toolbar = document.getElementById('rtToolbar');
+      if (!toolbar.hidden && activeEditorEl) showToolbarFor(activeEditorEl);
+    }, 60);
+    window.addEventListener('resize', reposition);
+    window.addEventListener('orientationchange', reposition);
+    document.querySelectorAll('.panel__scroll, .preview-workspace').forEach(scroller => {
+      scroller.addEventListener('scroll', reposition, { passive: true });
     });
   }
 
@@ -2077,6 +2287,215 @@ const Editor = (() => {
    the resulting DOM structure/measurements rather than maintaining a
    separate layout implementation.
    ========================================================================= */
+
+/* =========================================================================
+   DOC RENDERER — single shared source of truth for turning a question
+   set + document meta into paper HTML. Both the live Preview and the
+   PdfGen offscreen export call into this, so the two can never drift
+   apart (see spec "Preview Accuracy": Editor State -> Document Model ->
+   Preview Renderer -> PDF Renderer, same pipeline both ends).
+
+   Also owns pagination: paginate() measures rendered question blocks
+   against the available page height and splits them across as many
+   page HTML fragments as needed, rather than letting the paper grow
+   infinitely tall with no second page (the earlier bug).
+   ========================================================================= */
+
+const DocRenderer = (() => {
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  /** Renders the header block (set code, title, subtitle, marks/time, divider, note). */
+  function renderHeaderHtml(doc, lang, setCode) {
+    const hasMeta = !!(doc.title || doc.subtitle || doc.marks || doc.time);
+    let html = '';
+
+    if (setCode) {
+      html += `<div class="doc__setcode">${lang === 'bn' ? 'সেট' : 'Set'}: ${escapeHtml(setCode)}</div>`;
+    }
+    if (doc.title) html += `<div class="doc__title">${escapeHtml(doc.title)}</div>`;
+    if (doc.subtitle) html += `<div class="doc__subtitle">${escapeHtml(doc.subtitle)}</div>`;
+
+    if (doc.marks || doc.time) {
+      html += `<div class="doc__metarow">
+        <span>${doc.marks ? `${lang === 'bn' ? 'মান' : 'Marks'}: ${escapeHtml(doc.marks)}` : ''}</span>
+        <span>${doc.time ? `${lang === 'bn' ? 'সময়' : 'Time'}: ${escapeHtml(doc.time)}` : ''}</span>
+      </div>`;
+    }
+
+    if (hasMeta) html += `<div class="doc__divider"></div>`;
+    if (doc.note) html += `<div class="doc__note">${lang === 'bn' ? 'নোট' : 'Note'}: ${escapeHtml(doc.note)}</div>`;
+
+    return html;
+  }
+
+  /** Renders a single question block, with its options laid out per optionsLayout. */
+  function renderQuestionHtml(q, index, lang) {
+    const num = Utils.formatQuestionNumber(index, lang);
+    const layout = q.optionsLayout || 'vertical';
+    const layoutClass = `doc-options--${layout}`;
+
+    let html = `<div class="doc-question">
+      <div class="doc-question__text">
+        <span class="doc-question__number">${num}.</span>
+        <span class="doc-question__content">${q.question.html || ''}</span>
+      </div>
+      <div class="doc-options ${layoutClass}">`;
+
+    q.options.forEach((opt, oi) => {
+      html += `<div class="doc-option">
+        <span class="doc-option__label">${Utils.optionLabel(oi, lang)}</span>
+        <span class="doc-option__content">${opt.html || ''}</span>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+    return html;
+  }
+
+  /** Full single-page (non-paginated) document body, used by the on-screen preview. */
+  function renderFullDocumentHtml(questions, setCode, doc, lang, fontStack, settings) {
+    const hasQuestionContent = questions.some(q =>
+      Utils.stripHtml(q.question.html) !== '' || q.options.some(o => Utils.stripHtml(o.html) !== '')
+    );
+
+    let html = `<div class="doc" data-doc-font="${lang}" style="font-family:${fontStack};font-size:${settings.fontSize}pt;color:${settings.fontColor};">`;
+    html += renderHeaderHtml(doc, lang, setCode);
+
+    if (!hasQuestionContent) {
+      html += `<div class="doc--empty-state">${lang === 'bn' ? 'প্রশ্ন যোগ করুন প্রিভিউ দেখতে...' : 'Add a question to see the live preview...'}</div>`;
+    } else {
+      html += `<div class="doc__questions">`;
+      questions.forEach((q, i) => { html += renderQuestionHtml(q, i, lang); });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+    return html;
+  }
+
+  /**
+   * Split questions across multiple pages by measuring actual rendered
+   * height against the page's available content height. Returns an
+   * array of page descriptors: [{ html, isFirstPage }].
+   *
+   * Measurement approach: render all questions into an offscreen probe
+   * paper (same width/font/column layout as the real page), measure
+   * each question block's height + gap via getBoundingClientRect, then
+   * greedily pack them two-column-aware (fills column 1 then column 2
+   * per page, matching the CSS column-count:2 the real page uses)
+   * until the page's content budget is exceeded, starting a new page.
+   */
+  function paginate(questions, setCode, doc, lang, fontStack, settings, pageSizeKey) {
+    const dims = Preview.PAGE_SIZES_MM[pageSizeKey] || Preview.PAGE_SIZES_MM.A4;
+    const MM_TO_PX = 96 / 25.4; // CSS px per mm at 96dpi (matches on-screen .paper sizing)
+
+    // Physical page content budget (page height minus .paper's own
+    // top+bottom padding, which is 18mm top / 18mm bottom).
+    const paddingMm = 18 * 2;
+    const pageContentHeightPx = (dims.h - paddingMm) * MM_TO_PX;
+
+    const headerHtml = renderHeaderHtml(doc, lang, setCode);
+
+    // Offscreen probe: same width + typography + the real .doc__questions
+    // column-count:2 CSS as the live page, so height measurements are
+    // taken from actual rendered layout rather than an approximation
+    // (CSS multi-column fill/balance behavior is not something worth
+    // re-implementing in JS — measuring the real thing is more reliable).
+    const probe = document.createElement('div');
+    probe.className = 'paper';
+    probe.style.position = 'fixed';
+    probe.style.left = '-99999px';
+    probe.style.top = '0';
+    probe.style.width = `${dims.w}mm`;
+    probe.style.boxShadow = 'none';
+    probe.style.height = 'auto';
+    probe.style.minHeight = '0';
+    document.body.appendChild(probe);
+
+    const docWrap = document.createElement('div');
+    docWrap.className = 'doc';
+    docWrap.dataset.docFont = lang;
+    docWrap.style.fontFamily = fontStack;
+    docWrap.style.fontSize = `${settings.fontSize}pt`;
+    docWrap.style.color = settings.fontColor;
+    probe.appendChild(docWrap);
+
+    docWrap.innerHTML = headerHtml;
+    const headerHeightPx = docWrap.getBoundingClientRect().height;
+
+    const questionsHost = document.createElement('div');
+    questionsHost.className = 'doc__questions';
+    docWrap.appendChild(questionsHost);
+
+    /** Measures the real rendered height of .doc__questions for a given slice of questions. */
+    function measureBlockHeight(questionSlice) {
+      questionsHost.innerHTML = questionSlice.map(({ q, index }) => renderQuestionHtml(q, index, lang)).join('');
+      return questionsHost.getBoundingClientRect().height;
+    }
+
+    const pages = [];
+    let remaining = questions.map((q, index) => ({ q, index }));
+    let isFirst = true;
+
+    while (remaining.length > 0) {
+      const budget = isFirst
+        ? Math.max(pageContentHeightPx - headerHeightPx, pageContentHeightPx * 0.3)
+        : pageContentHeightPx;
+
+      // Greedily find the largest prefix of `remaining` whose rendered
+      // (real, column-balanced) height still fits the page budget.
+      let lo = 1, hi = remaining.length, best = 1;
+      // Fast path: does everything fit? Avoids a full binary search per page.
+      if (measureBlockHeight(remaining) <= budget) {
+        best = remaining.length;
+      } else {
+        while (lo <= hi) {
+          const mid = Math.floor((lo + hi) / 2);
+          const slice = remaining.slice(0, mid);
+          const h = measureBlockHeight(slice);
+          if (h <= budget) { best = mid; lo = mid + 1; }
+          else { hi = mid - 1; }
+        }
+        // Guarantee forward progress even if a single question alone
+        // exceeds the budget (e.g. an unusually long question) — still
+        // place at least one question so we never infinite-loop.
+        best = Math.max(best, 1);
+      }
+
+      pages.push({ questions: remaining.slice(0, best), isFirstPage: isFirst });
+      remaining = remaining.slice(best);
+      isFirst = false;
+    }
+
+    if (pages.length === 0) {
+      pages.push({ questions: [], isFirstPage: true });
+    }
+
+    document.body.removeChild(probe);
+
+    return pages.map(page => {
+      let html = `<div class="doc" data-doc-font="${lang}" style="font-family:${fontStack};font-size:${settings.fontSize}pt;color:${settings.fontColor};">`;
+      if (page.isFirstPage) html += headerHtml;
+      if (page.questions.length > 0) {
+        html += `<div class="doc__questions">`;
+        page.questions.forEach(({ q, index }) => { html += renderQuestionHtml(q, index, lang); });
+        html += `</div>`;
+      } else {
+        html += `<div class="doc--empty-state">${lang === 'bn' ? 'প্রশ্ন যোগ করুন প্রিভিউ দেখতে...' : 'Add a question to see the live preview...'}</div>`;
+      }
+      html += `</div>`;
+      return html;
+    });
+  }
+
+  return { renderFullDocumentHtml, renderHeaderHtml, renderQuestionHtml, paginate, escapeHtml };
+})();
+
 
 const Preview = (() => {
 
@@ -2114,13 +2533,15 @@ const Preview = (() => {
     return null;
   }
 
+  /** Applies dimensions/background to every .paper sheet currently in the DOM. */
   function applyPaperDimensions() {
     const state = State.get();
-    const paper = document.getElementById('paper');
     const dims = PAGE_SIZES_MM[state.settings.pageSize] || PAGE_SIZES_MM.A4;
-    paper.style.width = `${dims.w}mm`;
-    paper.style.minHeight = `${dims.h}mm`;
-    paper.style.background = state.settings.pageColor || '#FFFFFF';
+    document.querySelectorAll('#paperWrap .paper').forEach(paper => {
+      paper.style.width = `${dims.w}mm`;
+      paper.style.minHeight = `${dims.h}mm`;
+      paper.style.background = state.settings.pageColor || '#FFFFFF';
+    });
   }
 
   function applyZoom() {
@@ -2130,6 +2551,14 @@ const Preview = (() => {
     document.getElementById('zoomValue').textContent = `${state.settings.zoom}%`;
   }
 
+  /**
+   * Renders the live preview as one or more physical page sheets (see
+   * spec §3: "does not take any page break for adding question to a new
+   * page" — fixed here by actually paginating instead of letting a
+   * single .paper grow infinitely tall). Each page is its own .paper
+   * element stacked vertically with a visible gap, mirroring how a
+   * printed/exported multi-page document would look.
+   */
   function renderDocumentBody() {
     const state = State.get();
     const lang = state.language;
@@ -2137,67 +2566,40 @@ const Preview = (() => {
     const questions = currentQuestions();
     const setCode = currentSetCode();
     const fontStack = FONT_STACKS[state.settings.fontFamily] || FONT_STACKS.Calibri;
+    const dims = PAGE_SIZES_MM[state.settings.pageSize] || PAGE_SIZES_MM.A4;
 
-    const hasMeta = !!(doc.title || doc.subtitle || doc.marks || doc.time);
     const hasQuestionContent = questions.some(q =>
       Utils.stripHtml(q.question.html) !== '' || q.options.some(o => Utils.stripHtml(o.html) !== '')
     );
 
-    let html = `<div class="doc" data-doc-font="${lang}" style="font-family:${fontStack};font-size:${state.settings.fontSize}pt;color:${state.settings.fontColor};">`;
+    const wrap = document.getElementById('paperWrap');
 
-    if (setCode) {
-      html += `<div class="doc__setcode">${lang === 'bn' ? 'সেট' : 'Set'}: ${escapeHtml(setCode)}</div>`;
-    }
-
-    if (doc.title) html += `<div class="doc__title">${escapeHtml(doc.title)}</div>`;
-    if (doc.subtitle) html += `<div class="doc__subtitle">${escapeHtml(doc.subtitle)}</div>`;
-
-    if (doc.marks || doc.time) {
-      html += `<div class="doc__metarow">
-        <span>${doc.marks ? `${lang === 'bn' ? 'মান' : 'Marks'}: ${escapeHtml(doc.marks)}` : ''}</span>
-        <span>${doc.time ? `${lang === 'bn' ? 'সময়' : 'Time'}: ${escapeHtml(doc.time)}` : ''}</span>
-      </div>`;
-    }
-
-    if (hasMeta) html += `<div class="doc__divider"></div>`;
-
-    if (doc.note) {
-      html += `<div class="doc__note">${lang === 'bn' ? 'নোট' : 'Note'}: ${escapeHtml(doc.note)}</div>`;
-    }
-
+    let pageHtmlList;
     if (!hasQuestionContent) {
-      html += `<div class="doc--empty-state">${lang === 'bn' ? 'প্রশ্ন যোগ করুন প্রিভিউ দেখতে...' : 'Add a question to see the live preview...'}</div>`;
+      pageHtmlList = [DocRenderer.renderFullDocumentHtml(questions, setCode, doc, lang, fontStack, state.settings)];
     } else {
-      html += `<div class="doc__questions">`;
-      questions.forEach((q, i) => {
-        const num = Utils.formatQuestionNumber(i, lang);
-        html += `<div class="doc-question">
-          <div class="doc-question__text">
-            <span class="doc-question__number">${num}.</span>
-            <span class="doc-question__content">${q.question.html || ''}</span>
-          </div>
-          <div class="doc-options">`;
-        q.options.forEach((opt, oi) => {
-          if (Utils.stripHtml(opt.html) === '' && !hasQuestionContent) return;
-          html += `<div class="doc-option">
-            <span class="doc-option__label">${Utils.optionLabel(oi, lang)}</span>
-            <span class="doc-option__content">${opt.html || ''}</span>
-          </div>`;
-        });
-        html += `</div></div>`;
-      });
-      html += `</div>`;
+      pageHtmlList = DocRenderer.paginate(questions, setCode, doc, lang, fontStack, state.settings, state.settings.pageSize);
     }
 
-    html += `</div>`;
+    wrap.innerHTML = pageHtmlList.map((pageHtml, i) =>
+      `<div class="paper" id="${i === 0 ? 'paper' : ''}" data-page="${i + 1}" role="img" aria-label="Question paper preview, page ${i + 1}">${pageHtml}</div>`
+    ).join('');
 
-    document.getElementById('paper').innerHTML = html;
-  }
+    wrap.classList.toggle('paper-wrap--multipage', pageHtmlList.length > 1);
 
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    // Page number footer, shown only when there is more than one page.
+    if (pageHtmlList.length > 1) {
+      wrap.querySelectorAll('.paper').forEach((paperEl, i) => {
+        const footer = document.createElement('div');
+        footer.className = 'doc__pagenum';
+        footer.textContent = lang === 'bn'
+          ? `${Utils.toBanglaNumber(i + 1)} / ${Utils.toBanglaNumber(pageHtmlList.length)}`
+          : `Page ${i + 1} of ${pageHtmlList.length}`;
+        paperEl.appendChild(footer);
+      });
+    }
+
+    applyPaperDimensions();
   }
 
   function renderSetPicker() {
@@ -2212,7 +2614,7 @@ const Preview = (() => {
 
     wrap.hidden = false;
     select.innerHTML = state.generatedSets.map((s, i) =>
-      `<option value="${i}">${state.language === 'bn' ? 'সেট' : 'Set'} ${escapeHtml(s.setCode)}</option>`
+      `<option value="${i}">${state.language === 'bn' ? 'সেট' : 'Set'} ${DocRenderer.escapeHtml(s.setCode)}</option>`
     ).join('');
 
     if (state.activeSetIndex < 0 || state.activeSetIndex >= state.generatedSets.length) {
@@ -2222,19 +2624,19 @@ const Preview = (() => {
   }
 
   const update = Utils.debounce(() => {
-    applyPaperDimensions();
     renderDocumentBody();
     renderSetPicker();
   }, 60);
 
   function updateImmediate() {
-    applyPaperDimensions();
     renderDocumentBody();
     renderSetPicker();
   }
 
   return { update, updateImmediate, applyZoom, applyPaperDimensions, PAGE_SIZES_MM, FONT_STACKS, currentQuestions, currentSetCode };
 })();
+
+
 
 
 /* ===== js/randomizer.js ===== */
@@ -2329,117 +2731,126 @@ const Randomizer = (() => {
 
 const PdfGen = (() => {
 
-  /** Build an offscreen, print-ready clone of the paper for a given question set. */
-  function buildOffscreenPaper(questions, setCode) {
+  /**
+   * STRATEGY (fixes the non-functional download button):
+   *
+   * The previous implementation called jsPDF's built-in `pdf.html()`
+   * helper and passed it a millimeter value through the `width` option,
+   * which that API actually expects in PIXELS relative to `windowWidth`.
+   * That unit mismatch produced a blank/broken internal render in many
+   * browsers, so nothing ever downloaded.
+   *
+   * This version drives rasterization explicitly and predictably:
+   *   1. DocRenderer.paginate() produces one HTML fragment per physical
+   *      page (reusing the exact same renderer as the live preview).
+   *   2. Each page fragment is rendered into an offscreen .paper node
+   *      at a fixed, known pixel width.
+   *   3. html2canvas (loaded directly, not jsPDF's internal copy)
+   *      rasterizes that exact node to a canvas.
+   *   4. The canvas is added to the PDF as a full-bleed image sized to
+   *      the physical page dimensions in mm, one page per canvas.
+   *
+   * This keeps unit conversions in one place (mm -> px via a single
+   * known DPI factor) instead of relying on a third-party helper's
+   * internal (and, here, buggy) unit assumptions.
+   */
+
+  const PDF_RENDER_DPI_SCALE = 2.83; // ~72dpi CSS px source -> ~204dpi rasterized output
+
+  function checkDependencies() {
+    const missing = [];
+    if (!window.html2canvas) missing.push('html2canvas');
+    if (!(window.jspdf && window.jspdf.jsPDF)) missing.push('jsPDF');
+    return missing;
+  }
+
+  /** Build a single offscreen, print-ready .paper node containing the given page HTML. */
+  function buildOffscreenPage(pageHtml, pageColor) {
+    const node = document.createElement('div');
+    node.className = 'paper';
+    node.style.position = 'fixed';
+    node.style.left = '-99999px';
+    node.style.top = '0';
+    node.style.margin = '0';
+    node.style.boxShadow = 'none';
+    node.style.background = pageColor || '#FFFFFF';
+    node.innerHTML = pageHtml;
+    document.body.appendChild(node);
+    return node;
+  }
+
+  /**
+   * Renders one page HTML fragment to a canvas at a fixed CSS pixel
+   * width (matching the physical page width at 96dpi), then removes
+   * the offscreen node. Returns { canvas, node } — caller must have
+   * already appended node's dimensions styling before calling.
+   */
+  async function rasterizePage(pageHtml, widthPx, heightPxMin, pageColor) {
+    const node = buildOffscreenPage(pageHtml, pageColor);
+    node.style.width = `${widthPx}px`;
+    node.style.minHeight = `${heightPxMin}px`;
+
+    // Force layout before measuring, in case fonts/webfont metrics are
+    // still settling — a microtask tick is enough since fonts used here
+    // (Google Fonts) are preconnected/preloaded in <head>.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    const actualHeight = Math.max(node.scrollHeight, heightPxMin);
+
+    const canvas = await html2canvas(node, {
+      scale: PDF_RENDER_DPI_SCALE,
+      useCORS: true,
+      backgroundColor: pageColor || '#FFFFFF',
+      width: widthPx,
+      height: actualHeight,
+      windowWidth: widthPx
+    });
+
+    document.body.removeChild(node);
+    return canvas;
+  }
+
+  /**
+   * Generate a single jsPDF document (multi-page aware) for the given
+   * question set. Returns a jsPDF instance.
+   */
+  async function generateSinglePdf(questions, setCode) {
+    const missing = checkDependencies();
+    if (missing.length) throw new Error(`${missing.join(' & ')} failed to load`);
+
     const state = State.get();
     const lang = state.language;
     const doc = state.document;
-    const dims = Preview.PAGE_SIZES_MM[state.settings.pageSize] || Preview.PAGE_SIZES_MM.A4;
+    const sizeKey = state.settings.pageSize;
+    const dims = Preview.PAGE_SIZES_MM[sizeKey] || Preview.PAGE_SIZES_MM.A4;
     const fontStack = Preview.FONT_STACKS[state.settings.fontFamily] || Preview.FONT_STACKS.Calibri;
+    const unitFormat = sizeKey === 'A4' ? 'a4' : (sizeKey === 'Letter' ? 'letter' : 'legal');
 
-    const container = document.createElement('div');
-    container.className = 'paper';
-    container.style.position = 'fixed';
-    container.style.left = '-99999px';
-    container.style.top = '0';
-    container.style.width = `${dims.w}mm`;
-    container.style.minHeight = `${dims.h}mm`;
-    container.style.background = state.settings.pageColor || '#FFFFFF';
-    container.style.boxShadow = 'none';
+    const MM_TO_PX = 96 / 25.4;
+    const widthPx = Math.round(dims.w * MM_TO_PX);
+    const heightPx = Math.round(dims.h * MM_TO_PX);
 
-    // Reuse the exact same render function preview.js uses, targeting this node.
-    const html = renderDocHtml(questions, setCode, doc, lang, fontStack, state);
-    container.innerHTML = html;
-
-    document.body.appendChild(container);
-    return container;
-  }
-
-  /** Mirrors Preview's renderDocumentBody() but returns a string for an arbitrary question set. */
-  function renderDocHtml(questions, setCode, doc, lang, fontStack, state) {
-    const esc = (str) => {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    };
-
-    const hasMeta = !!(doc.title || doc.subtitle || doc.marks || doc.time);
     const hasQuestionContent = questions.some(q =>
       Utils.stripHtml(q.question.html) !== '' || q.options.some(o => Utils.stripHtml(o.html) !== '')
     );
 
-    let html = `<div class="doc" data-doc-font="${lang}" style="font-family:${fontStack};font-size:${state.settings.fontSize}pt;color:${state.settings.fontColor};">`;
+    const pageHtmlList = hasQuestionContent
+      ? DocRenderer.paginate(questions, setCode, doc, lang, fontStack, state.settings, sizeKey)
+      : [DocRenderer.renderFullDocumentHtml(questions, setCode, doc, lang, fontStack, state.settings)];
 
-    if (setCode) html += `<div class="doc__setcode">${lang === 'bn' ? 'সেট' : 'Set'}: ${esc(setCode)}</div>`;
-    if (doc.title) html += `<div class="doc__title">${esc(doc.title)}</div>`;
-    if (doc.subtitle) html += `<div class="doc__subtitle">${esc(doc.subtitle)}</div>`;
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: unitFormat });
 
-    if (doc.marks || doc.time) {
-      html += `<div class="doc__metarow">
-        <span>${doc.marks ? `${lang === 'bn' ? 'মান' : 'Marks'}: ${esc(doc.marks)}` : ''}</span>
-        <span>${doc.time ? `${lang === 'bn' ? 'সময়' : 'Time'}: ${esc(doc.time)}` : ''}</span>
-      </div>`;
+    for (let i = 0; i < pageHtmlList.length; i++) {
+      const canvas = await rasterizePage(pageHtmlList[i], widthPx, heightPx, state.settings.pageColor);
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const renderedHeightMm = (canvas.height / canvas.width) * dims.w;
+
+      if (i > 0) pdf.addPage(unitFormat, 'portrait');
+      pdf.addImage(imgData, 'JPEG', 0, 0, dims.w, Math.min(renderedHeightMm, dims.h), undefined, 'FAST');
     }
 
-    if (hasMeta) html += `<div class="doc__divider"></div>`;
-    if (doc.note) html += `<div class="doc__note">${lang === 'bn' ? 'নোট' : 'Note'}: ${esc(doc.note)}</div>`;
-
-    if (hasQuestionContent) {
-      html += `<div class="doc__questions">`;
-      questions.forEach((q, i) => {
-        const num = Utils.formatQuestionNumber(i, lang);
-        html += `<div class="doc-question">
-          <div class="doc-question__text">
-            <span class="doc-question__number">${num}.</span>
-            <span class="doc-question__content">${q.question.html || ''}</span>
-          </div>
-          <div class="doc-options">`;
-        q.options.forEach((opt, oi) => {
-          html += `<div class="doc-option">
-            <span class="doc-option__label">${Utils.optionLabel(oi, lang)}</span>
-            <span class="doc-option__content">${opt.html || ''}</span>
-          </div>`;
-        });
-        html += `</div></div>`;
-      });
-      html += `</div>`;
-    }
-
-    html += `</div>`;
-    return html;
-  }
-
-  /** Generate a single jsPDF document (returns a jsPDF instance) for the given question set. */
-  function generateSinglePdf(questions, setCode) {
-    return new Promise((resolve, reject) => {
-      const state = State.get();
-      const sizeKey = state.settings.pageSize;
-      const orientation = 'portrait';
-      const unitFormat = sizeKey === 'A4' ? 'a4' : (sizeKey === 'Letter' ? 'letter' : 'legal');
-
-      const { jsPDF } = window.jspdf || {};
-      if (!jsPDF) { reject(new Error('jsPDF failed to load')); return; }
-
-      const pdf = new jsPDF({ orientation, unit: 'mm', format: unitFormat });
-      const node = buildOffscreenPaper(questions, setCode);
-
-      const marginMm = 0; // margins are already baked into .paper's own padding
-      pdf.html(node, {
-        margin: marginMm,
-        autoPaging: 'text',
-        html2canvas: {
-          scale: 2.83, // ~72dpi CSS px -> ~204dpi output for crisp text
-          useCORS: true,
-          backgroundColor: state.settings.pageColor || '#FFFFFF'
-        },
-        width: Preview.PAGE_SIZES_MM[sizeKey].w,
-        windowWidth: node.offsetWidth || 794,
-        callback: (doc) => {
-          document.body.removeChild(node);
-          resolve(doc);
-        }
-      });
-    });
+    return pdf;
   }
 
   function safeFileName(str) {
@@ -2457,6 +2868,11 @@ const PdfGen = (() => {
     labelEl.textContent = 'Generating…';
 
     try {
+      const missing = checkDependencies();
+      if (missing.length) {
+        throw new Error(`Required library failed to load: ${missing.join(', ')}. Check your internet connection.`);
+      }
+
       const title = state.document.title || 'MCQ_Question_Paper';
       const baseName = safeFileName(title);
 
@@ -3055,6 +3471,7 @@ const App = (() => {
     toast, requestReset, requestDeleteQuestion, handleSave
   };
 })();
+
 
 
 </script>
