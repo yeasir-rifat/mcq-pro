@@ -1181,6 +1181,12 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            padding: 4px 8px 4px 4px;
+            border-radius: var(--radius-sm);
+            transition: background var(--transition);
+        }
+        .option-row.is-correct-row {
+            background: var(--success-soft, rgba(22, 163, 74, 0.08));
         }
         .option-row__label {
             width: 26px;
@@ -1199,10 +1205,45 @@
             flex-shrink: 0;
             align-self: center;
         }
+        .option-row__label--pickable {
+            padding: 0;
+            font-family: inherit;
+            transition: background var(--transition), border-color var(--transition), color var(--transition), transform var(--transition);
+        }
+        .option-row__label--pickable:hover {
+            border-color: var(--success);
+            color: var(--success);
+        }
+        .option-row__label--pickable.is-correct {
+            background: var(--success);
+            border-color: var(--success);
+            color: #FFFFFF;
+        }
         .option-row .editor-area {
             flex: 1;
             min-width: 0;
             min-height: 36px;
+        }
+        .option-explanation {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 4px;
+            padding: 8px 10px 10px;
+            background: var(--success-soft, rgba(22, 163, 74, 0.06));
+            border: 1px dashed var(--success);
+            border-radius: var(--radius-sm);
+        }
+        .option-explanation__label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--success);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .option-explanation__editor {
+            min-height: 32px;
+            background: var(--panel);
         }
 
         /* ===== PREVIEW ===== */
@@ -1481,6 +1522,28 @@
             min-width: 0;
             word-break: break-word;
         }
+        .doc-option--correct .doc-option__label {
+            background: #16A34A;
+            border-color: #16A34A;
+            color: #FFFFFF;
+        }
+        .doc-option--correct .doc-option__content {
+            font-weight: 700;
+        }
+        .doc-explanation {
+            margin: 4px 0 0 1.5em;
+            padding: 4px 0 0;
+            font-size: 0.88em;
+            font-style: italic;
+            color: #374151;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        .doc-explanation__label {
+            font-style: normal;
+            font-weight: 700;
+            color: #16A34A;
+        }
         .doc--empty-state {
             display: flex;
             align-items: center;
@@ -1657,9 +1720,6 @@
                 width: 28px;
                 height: 28px;
                 font-size: 12px;
-            }
-            .doc__questions {
-                column-count: 1;
             }
             .question-card__head {
                 padding: 8px 10px;
@@ -2133,8 +2193,9 @@
                     id: Utils.uid('q'),
                     question: { html: '' },
                     optionsLayout: 'vertical',
-                    options: [{ id: 'a', html: '' }, { id: 'b', html: '' }, { id: 'c', html: '' }, { id: 'd',
-                        html: '' }]
+                    explanationHtml: '',
+                    options: [{ id: 'a', html: '', correct: false }, { id: 'b', html: '', correct: false }, {
+                        id: 'c', html: '', correct: false }, { id: 'd', html: '', correct: false }]
                 };
             }
 
@@ -2143,8 +2204,10 @@
                     id: Utils.uid('q'),
                     question: { html: 'Which process is primarily responsible for the conversion of light energy into chemical energy in plants?' },
                     optionsLayout: 'vertical',
-                    options: [{ id: 'a', html: 'Respiration' }, { id: 'b', html: 'Photosynthesis' }, { id: 'c',
-                            html: 'Transpiration' }, { id: 'd', html: 'Germination' }]
+                    explanationHtml: 'Photosynthesis converts light energy into chemical energy stored as glucose.',
+                    options: [{ id: 'a', html: 'Respiration', correct: false }, { id: 'b', html: 'Photosynthesis',
+                            correct: true }, { id: 'c', html: 'Transpiration', correct: false }, { id: 'd',
+                            html: 'Germination', correct: false }]
                 };
             }
 
@@ -2216,9 +2279,25 @@
 
             function setQuestionLayout(id, layout) { const q = appState.questions.find(q => q.id === id); if (q) q
                     .optionsLayout = layout; }
+
+            function toggleOptionCorrect(questionId, optionId) {
+                const q = appState.questions.find(q => q.id === questionId);
+                if (!q) return false;
+                const opt = q.options.find(o => o.id === optionId);
+                if (!opt) return false;
+                opt.correct = !opt.correct;
+                const anyCorrect = q.options.some(o => o.correct);
+                if (!anyCorrect) q.explanationHtml = '';
+                return anyCorrect;
+            }
+
+            function updateQuestionExplanation(questionId, html) {
+                const q = appState.questions.find(q => q.id === questionId);
+                if (q) q.explanationHtml = html;
+            }
             return { get, replaceAll, resetToDefault, defaultState, setLanguage, setDocField, setSetting,
                 setSetCodeField, addQuestion, deleteQuestion, duplicateQuestion, moveQuestion, updateQuestionHtml,
-                updateOptionHtml, setQuestionLayout, freshQuestion };
+                updateOptionHtml, setQuestionLayout, freshQuestion, toggleOptionCorrect, updateQuestionExplanation };
         })();
 
 
@@ -2488,10 +2567,41 @@
 
                 const optionsList = document.createElement('div');
                 optionsList.className = 'options-list';
+                const hasAnyCorrect = q.options.some(o => o.correct);
                 q.options.forEach((opt, oi) => {
-                    optionsList.appendChild(buildOptionRow(q.id, opt, oi, lang));
+                    optionsList.appendChild(buildOptionRow(q.id, opt, oi, lang, (anyCorrect) => {
+                        explBox.hidden = !anyCorrect;
+                        if (anyCorrect) setTimeout(() => explEditor.focus(), 0);
+                        else setEditorContent(explEditor, '');
+                    }));
                 });
                 body.appendChild(optionsList);
+
+                const explBox = document.createElement('div');
+                explBox.className = 'option-explanation';
+                explBox.hidden = !hasAnyCorrect;
+
+                const explLabel = document.createElement('span');
+                explLabel.className = 'option-explanation__label';
+                explLabel.textContent = lang === 'bn' ? 'ব্যাখ্যা..' : 'Explanation..';
+                explBox.appendChild(explLabel);
+
+                const explEditor = document.createElement('div');
+                explEditor.className = 'editor-area option-explanation__editor';
+                explEditor.contentEditable = 'true';
+                explEditor.dataset.role = 'explanation';
+                explEditor.dataset.placeholder = lang === 'bn' ? 'সঠিক উত্তরের ব্যাখ্যা লিখুন...' :
+                    'Explain why this answer is correct...';
+                explEditor.setAttribute('aria-label', lang === 'bn' ? 'ব্যাখ্যা' : 'Explanation');
+                setEditorContent(explEditor, q.explanationHtml);
+                explBox.appendChild(explEditor);
+
+                bindEditableEvents(explEditor, (html) => {
+                    State.updateQuestionExplanation(q.id, html);
+                    Preview.update();
+                });
+
+                body.appendChild(explBox);
                 card.appendChild(body);
 
                 // --- Events ---
@@ -2633,12 +2743,18 @@
                 return card;
             }
 
-            function buildOptionRow(questionId, opt, index, lang) {
+            function buildOptionRow(questionId, opt, index, lang, onCorrectToggle) {
                 const row = document.createElement('div');
-                row.className = 'option-row';
-                const label = document.createElement('span');
-                label.className = 'option-row__label';
+                row.className = 'option-row' + (opt.correct ? ' is-correct-row' : '');
+
+                const label = document.createElement('button');
+                label.type = 'button';
+                label.className = 'option-row__label option-row__label--pickable' + (opt.correct ?
+                    ' is-correct' : '');
                 label.textContent = Utils.optionLabel(index, lang);
+                label.title = lang === 'bn' ? 'সঠিক উত্তর হিসেবে চিহ্নিত করুন' : 'Mark as correct answer';
+                label.setAttribute('aria-pressed', opt.correct ? 'true' : 'false');
+                label.setAttribute('aria-label', `${lang === 'bn' ? 'সঠিক উত্তর নির্বাচন করুন' : 'Mark correct answer'}: ${Utils.optionLabel(index, lang)}`);
                 row.appendChild(label);
 
                 const editor = document.createElement('div');
@@ -2653,6 +2769,15 @@
 
                 bindEditableEvents(editor, (html) => {
                     State.updateOptionHtml(questionId, opt.id, html);
+                    Preview.update();
+                });
+
+                label.addEventListener('click', () => {
+                    const nowAnyCorrect = State.toggleOptionCorrect(questionId, opt.id);
+                    const isCorrectNow = label.classList.toggle('is-correct');
+                    label.setAttribute('aria-pressed', isCorrectNow ? 'true' : 'false');
+                    row.classList.toggle('is-correct-row', isCorrectNow);
+                    if (onCorrectToggle) onCorrectToggle(nowAnyCorrect);
                     Preview.update();
                 });
 
@@ -2816,7 +2941,7 @@
                 return html;
             }
 
-            function renderQuestionHtml(q, index, lang) {
+            function renderQuestionHtml(q, index, lang, withAnswers) {
                 const num = Utils.formatQuestionNumber(index, lang);
                 const layout = q.optionsLayout || 'vertical';
                 const layoutClass = `doc-options--${layout}`;
@@ -2827,16 +2952,22 @@
               </div>
               <div class="doc-options ${layoutClass}">`;
                 q.options.forEach((opt, oi) => {
-                    html += `<div class="doc-option">
+                    const isCorrect = withAnswers && !!opt.correct;
+                    html += `<div class="doc-option${isCorrect ? ' doc-option--correct' : ''}">
                 <span class="doc-option__label">${Utils.optionLabel(oi, lang)}</span>
                 <span class="doc-option__content">${opt.html || ''}</span>
               </div>`;
                 });
-                html += `</div></div>`;
+                html += `</div>`;
+                if (withAnswers && Utils.stripHtml(q.explanationHtml) !== '') {
+                    html +=
+                        `<div class="doc-explanation"><span class="doc-explanation__label">${lang === 'bn' ? 'ব্যাখ্যা' : 'Explanation'}:</span> <span class="doc-explanation__text">${q.explanationHtml}</span></div>`;
+                }
+                html += `</div>`;
                 return html;
             }
 
-            function renderFullDocumentHtml(questions, setCode, doc, lang, fontStack, settings) {
+            function renderFullDocumentHtml(questions, setCode, doc, lang, fontStack, settings, withAnswers) {
                 const hasQuestionContent = questions.some(q =>
                     Utils.stripHtml(q.question.html) !== '' || q.options.some(o => Utils.stripHtml(o.html) !== '')
                 );
@@ -2848,14 +2979,14 @@
                         `<div class="doc--empty-state">${lang === 'bn' ? 'প্রশ্ন যোগ করুন প্রিভিউ দেখতে...' : 'Add a question to see the live preview...'}</div>`;
                 } else {
                     html += `<div class="doc__questions">`;
-                    questions.forEach((q, i) => { html += renderQuestionHtml(q, i, lang); });
+                    questions.forEach((q, i) => { html += renderQuestionHtml(q, i, lang, withAnswers); });
                     html += `</div>`;
                 }
                 html += `</div>`;
                 return html;
             }
 
-            function paginate(questions, setCode, doc, lang, fontStack, settings, pageSizeKey) {
+            function paginate(questions, setCode, doc, lang, fontStack, settings, pageSizeKey, withAnswers) {
                 const dims = Preview.PAGE_SIZES_MM[pageSizeKey] || Preview.PAGE_SIZES_MM.A4;
                 const MM_TO_PX = 96 / 25.4;
                 const paddingMm = 18 * 2;
@@ -2885,8 +3016,8 @@
                 docWrap.appendChild(questionsHost);
 
                 function measureBlockHeight(questionSlice) {
-                    questionsHost.innerHTML = questionSlice.map(({ q, index }) => renderQuestionHtml(q, index, lang))
-                        .join('');
+                    questionsHost.innerHTML = questionSlice.map(({ q, index }) => renderQuestionHtml(q, index, lang,
+                        withAnswers)).join('');
                     return questionsHost.getBoundingClientRect().height;
                 }
                 const pages = [];
@@ -2916,7 +3047,8 @@
                     if (page.isFirstPage) html += headerHtml;
                     if (page.questions.length > 0) {
                         html += `<div class="doc__questions">`;
-                        page.questions.forEach(({ q, index }) => { html += renderQuestionHtml(q, index, lang); });
+                        page.questions.forEach(({ q, index }) => { html += renderQuestionHtml(q, index, lang,
+                            withAnswers); });
                         html += `</div>`;
                     } else {
                         html +=
@@ -3176,7 +3308,7 @@
                 return canvas;
             }
 
-            async function generateSinglePdf(questions, setCode) {
+            async function generateSinglePdf(questions, setCode, withAnswers) {
                 const missing = checkDependencies();
                 if (missing.length) throw new Error(`${missing.join(' & ')} failed to load`);
                 const state = State.get();
@@ -3193,8 +3325,10 @@
                     Utils.stripHtml(q.question.html) !== '' || q.options.some(o => Utils.stripHtml(o.html) !== '')
                 );
                 const pageHtmlList = hasQuestionContent ?
-                    DocRenderer.paginate(questions, setCode, doc, lang, fontStack, state.settings, sizeKey) :
-                    [DocRenderer.renderFullDocumentHtml(questions, setCode, doc, lang, fontStack, state.settings)];
+                    DocRenderer.paginate(questions, setCode, doc, lang, fontStack, state.settings, sizeKey,
+                        withAnswers) :
+                    [DocRenderer.renderFullDocumentHtml(questions, setCode, doc, lang, fontStack, state.settings,
+                        withAnswers)];
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: unitFormat });
                 for (let i = 0; i < pageHtmlList.length; i++) {
@@ -3208,6 +3342,21 @@
             }
 
             function safeFileName(str) { return String(str || 'Document').replace(/[^a-z0-9\-_]+/gi, '_').slice(0, 60); }
+
+            function anyCorrectAnswerMarked(questions) {
+                return questions.some(q => q.options.some(o => o.correct));
+            }
+
+            function downloadBlob(blob, filename) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+            }
 
             async function downloadDocument() {
                 const state = State.get();
@@ -3223,32 +3372,55 @@
                             ); }
                     const title = state.document.title || 'MCQ_Question_Paper';
                     const baseName = safeFileName(title);
+                    const includeAnswerKey = anyCorrectAnswerMarked(state.questions);
+
                     if (state.setCode.enabled && state.generatedSets.length > 1) {
                         if (!window.JSZip) throw new Error('JSZip failed to load');
                         const zip = new JSZip();
                         for (const set of state.generatedSets) {
-                            const pdf = await generateSinglePdf(set.questions, set.setCode);
-                            const blob = pdf.output('blob');
-                            zip.file(`MCQ_Set_${safeFileName(set.setCode)}.pdf`, blob);
+                            const pdf = await generateSinglePdf(set.questions, set.setCode, false);
+                            zip.file(`MCQ_Set_${safeFileName(set.setCode)}.pdf`, pdf.output('blob'));
+                            if (includeAnswerKey) {
+                                const answerPdf = await generateSinglePdf(set.questions, set.setCode, true);
+                                zip.file(`MCQ_Set_${safeFileName(set.setCode)}_Answer_Key.pdf`, answerPdf.output(
+                                    'blob'));
+                            }
                         }
                         const zipBlob = await zip.generateAsync({ type: 'blob' });
-                        const zipName = `${baseName}_Sets.zip`;
-                        const url = URL.createObjectURL(zipBlob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = zipName;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        setTimeout(() => URL.revokeObjectURL(url), 4000);
-                        App.toast('ZIP with all sets generated successfully', 'success');
+                        downloadBlob(zipBlob, `${baseName}_Sets.zip`);
+                        App.toast(includeAnswerKey ?
+                            'ZIP with all sets and answer keys generated successfully' :
+                            'ZIP with all sets generated successfully', 'success');
                     } else if (state.setCode.enabled && state.generatedSets.length === 1) {
                         const set = state.generatedSets[0];
-                        const pdf = await generateSinglePdf(set.questions, set.setCode);
-                        pdf.save(`MCQ_Set_${safeFileName(set.setCode)}.pdf`);
-                        App.toast('PDF generated successfully', 'success');
+                        const pdf = await generateSinglePdf(set.questions, set.setCode, false);
+                        if (includeAnswerKey) {
+                            if (!window.JSZip) throw new Error('JSZip failed to load');
+                            const answerPdf = await generateSinglePdf(set.questions, set.setCode, true);
+                            const zip = new JSZip();
+                            zip.file(`MCQ_Set_${safeFileName(set.setCode)}.pdf`, pdf.output('blob'));
+                            zip.file(`MCQ_Set_${safeFileName(set.setCode)}_Answer_Key.pdf`, answerPdf.output(
+                                'blob'));
+                            const zipBlob = await zip.generateAsync({ type: 'blob' });
+                            downloadBlob(zipBlob, `${baseName}_Set_${safeFileName(set.setCode)}.zip`);
+                            App.toast('ZIP with question paper and answer key generated successfully',
+                                'success');
+                        } else {
+                            pdf.save(`MCQ_Set_${safeFileName(set.setCode)}.pdf`);
+                            App.toast('PDF generated successfully', 'success');
+                        }
+                    } else if (includeAnswerKey) {
+                        if (!window.JSZip) throw new Error('JSZip failed to load');
+                        const pdf = await generateSinglePdf(state.questions, null, false);
+                        const answerPdf = await generateSinglePdf(state.questions, null, true);
+                        const zip = new JSZip();
+                        zip.file(`${baseName}.pdf`, pdf.output('blob'));
+                        zip.file(`${baseName}_Answer_Key.pdf`, answerPdf.output('blob'));
+                        const zipBlob = await zip.generateAsync({ type: 'blob' });
+                        downloadBlob(zipBlob, `${baseName}.zip`);
+                        App.toast('ZIP with question paper and answer key generated successfully', 'success');
                     } else {
-                        const pdf = await generateSinglePdf(state.questions, null);
+                        const pdf = await generateSinglePdf(state.questions, null, false);
                         pdf.save(`${baseName}.pdf`);
                         App.toast('PDF generated successfully', 'success');
                     }
