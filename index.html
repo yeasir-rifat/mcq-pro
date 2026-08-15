@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
     <title>MCQ Question Generator</title>
 
     <!-- Google Fonts -->
@@ -261,6 +261,22 @@
         .btn--danger:hover {
             filter: brightness(1.08);
         }
+        .btn--ai-mode {
+            padding: 8px 14px;
+            background: linear-gradient(180deg, var(--primary-light-stop) 0%, var(--primary) 100%);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(20, 110, 245, 0.25);
+            font-size: 12.5px;
+        }
+        .btn--ai-mode:hover {
+            background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
+            box-shadow: 0 6px 18px rgba(20, 110, 245, 0.38);
+            transform: translateY(-1px);
+        }
+        .btn--ai-mode i {
+            width: 15px;
+            height: 15px;
+        }
         .btn--full {
             width: 100%;
             justify-content: center;
@@ -301,6 +317,21 @@
             color: var(--primary);
             border-color: var(--primary);
             background: var(--primary-soft);
+        }
+        .icon-btn--accent {
+            color: var(--primary);
+            border-color: var(--primary-light);
+            background: var(--primary-soft);
+        }
+        .icon-btn--accent:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary-dark);
+        }
+        .icon-btn--danger:hover {
+            color: var(--danger);
+            border-color: var(--danger);
+            background: var(--danger-soft);
         }
 
         /* ===== APP SHELL ===== */
@@ -490,6 +521,252 @@
             box-shadow: var(--shadow-sm);
         }
 
+        /* ===== TOPBAR ACTION GROUPS (Camera / Upload / Settings, Download / Save / Reset) ===== */
+        .topbar-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .topbar-actions__sep {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+            margin: 0 2px;
+            flex-shrink: 0;
+        }
+
+        /* ===== AI CAPTURE MODAL ===== */
+        .ai-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 18, 25, 0.55);
+            z-index: 999;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            backdrop-filter: blur(2px);
+        }
+        .ai-modal-overlay[hidden] { display: none; }
+        .ai-modal {
+            width: 100%;
+            max-width: 560px;
+            max-height: none;
+            margin: auto 0;
+            background: var(--panel);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .ai-modal__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .ai-modal__head h2 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ai-modal__head h2 i { width: 18px; height: 18px; color: var(--primary); }
+        .ai-modal__body {
+            padding: 18px;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .ai-capture-stage {
+            position: relative;
+            width: 100%;
+            min-height: 200px;
+            border-radius: var(--radius-md);
+            border: 1.5px dashed var(--border-strong);
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: visible;
+        }
+        .ai-capture-stage video,
+        .ai-capture-stage img {
+            width: 100%;
+            max-height: 320px;
+            object-fit: contain;
+            display: block;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+        .ai-capture-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-faint);
+            padding: 28px 16px;
+            text-align: center;
+            width: 100%;
+        }
+        .ai-capture-placeholder i { width: 32px; height: 32px; flex-shrink: 0; }
+        .ai-capture-placeholder__actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+            width: 100%;
+            max-width: 260px;
+        }
+        .ai-capture-placeholder__actions .btn {
+            width: 100%;
+            justify-content: center;
+            white-space: nowrap;
+            padding: 10px 16px;
+        }
+        .ai-capture-placeholder__hint {
+            font-size: 11.5px;
+            color: var(--text-faint);
+            opacity: 0.8;
+        }
+        .ai-capture-doc-preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 28px 16px;
+            color: var(--text);
+            text-align: center;
+            width: 100%;
+        }
+        .ai-capture-doc-preview i { width: 40px; height: 40px; color: var(--primary); }
+        .ai-capture-doc-preview span {
+            font-size: 13px;
+            font-weight: 500;
+            word-break: break-word;
+            max-width: 100%;
+        }
+        .ai-capture-stage__remove {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(17, 24, 39, 0.65);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ai-capture-stage__remove i { width: 15px; height: 15px; }
+        .ai-capture-shutter-row {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+        .ai-shutter-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: 3px solid var(--primary);
+            background: var(--panel);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+        .ai-shutter-btn i { width: 22px; height: 22px; }
+        .ai-modal__field label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .ai-prompt-textarea {
+            width: 100%;
+            resize: vertical;
+            min-height: 72px;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 13px;
+        }
+        .ai-prompt-textarea:focus { border-color: var(--primary); }
+        .ai-quick-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .ai-chip {
+            padding: 5px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .ai-chip:hover { border-color: var(--primary); color: var(--primary); }
+        .ai-modal__row {
+            display: flex;
+            gap: 10px;
+        }
+        .ai-modal__row .field-block { flex: 1; }
+        .ai-modal__status {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 18px;
+        }
+        .ai-modal__status.is-error { color: var(--danger); }
+        .ai-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border-strong);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: ai-spin 0.7s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes ai-spin { to { transform: rotate(360deg); } }
+        .ai-spin-icon { animation: ai-spin 0.8s linear infinite; }
+        .ai-modal__foot {
+            display: flex;
+            gap: 10px;
+            padding: 14px 18px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .ai-key-hint {
+            font-size: 12px;
+            color: var(--text-faint);
+            background: var(--primary-soft);
+            border: 1px solid var(--primary-light);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        .ai-key-hint i { width: 15px; height: 15px; color: var(--primary); flex-shrink: 0; margin-top: 1px; }
+        .ai-key-hint a { color: var(--primary); font-weight: 500; }
+
         /* ===== QUESTIONS HEAD ===== */
         .questions-head {
             display: flex;
@@ -526,6 +803,8 @@
             transform: translateY(-1px);
             box-shadow: var(--shadow-sm);
         }
+
+        .setting-hint a { color: var(--primary); }
 
         /* ===== SETTINGS DRAWER ===== */
         .drawer-overlay {
@@ -1618,6 +1897,16 @@
         }
 
         @media (max-width: 720px) {
+            .ai-modal-overlay { padding: 10px; }
+            .ai-modal { max-width: 100%; }
+            .ai-modal__body { padding: 14px; }
+            .ai-capture-placeholder__actions {
+                flex-direction: column;
+            }
+            .ai-capture-placeholder__actions .btn {
+                width: 100%;
+                flex: none;
+            }
             .app-container {
                 padding: 0 4px;
             }
@@ -1680,6 +1969,7 @@
                 grid-template-columns: 1fr;
                 grid-template-rows: 1fr;
                 height: calc(100vh - 48px);
+                height: calc(100dvh - 48px);
                 padding: 0 4px 4px 4px;
                 gap: 4px;
             }
@@ -1694,11 +1984,14 @@
                 border-bottom: none;
             }
             .panel__scroll {
-                padding: 14px;
+                padding: 14px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
             }
             .panel-topbar {
                 margin-bottom: 14px;
+                flex-wrap: wrap;
             }
+            .topbar-actions { gap: 4px; }
+            .btn--ai-mode { padding: 7px 10px; font-size: 12px; }
             .preview-workspace {
                 padding: 8px;
             }
@@ -1863,17 +2156,6 @@
                 </div>
             </div>
 
-            <div class="app-header__actions">
-                <button type="button" class="btn btn--ghost" id="btnHeaderDownload" aria-label="Download PDF / ZIP">
-                    <i data-lucide="download"></i><span>Download</span>
-                </button>
-                <button type="button" class="btn btn--ghost" id="btnSave" aria-label="Save project">
-                    <i data-lucide="save"></i><span>Save</span>
-                </button>
-                <button type="button" class="btn btn--ghost" id="btnReset" aria-label="Reset document">
-                    <i data-lucide="rotate-ccw"></i><span>Reset</span>
-                </button>
-            </div>
         </header>
 
         <!-- Mobile tabs -->
@@ -1899,10 +2181,17 @@
                             <button type="button" class="lang-switch__btn is-active" data-lang="en">English</button>
                             <button type="button" class="lang-switch__btn" data-lang="bn">বাংলা</button>
                         </div>
-                        <button type="button" class="icon-btn icon-btn--settings" id="btnSettingsInput" aria-haspopup="true" aria-expanded="false" aria-label="Open settings">
-                            <i data-lucide="settings-2"></i>
-                        </button>
+                        <div class="topbar-actions">
+                            <button type="button" class="btn btn--ai-mode" id="btnAiMode" aria-haspopup="dialog" aria-label="Open AI Mode to generate MCQs from a photo or PDF" title="AI Mode">
+                                <i data-lucide="sparkles"></i><span>AI Mode</span>
+                            </button>
+                            <div class="topbar-actions__sep"></div>
+                            <button type="button" class="icon-btn icon-btn--settings" id="btnSettingsInput" aria-haspopup="true" aria-expanded="false" aria-label="Open settings" title="Settings">
+                                <i data-lucide="settings-2"></i>
+                            </button>
+                        </div>
                     </div>
+                    <input type="file" id="aiFileInput" accept="image/*,application/pdf" class="sr-only" tabindex="-1" aria-hidden="true">
 
                     <!-- ===== HEADER CARD ===== -->
                     <div class="header-card">
@@ -1969,9 +2258,21 @@
                             <label for="setPicker" class="sr-only">Preview set</label>
                             <select id="setPicker" class="set-switch__select"></select>
                         </div>
-                        <button type="button" class="icon-btn icon-btn--settings" id="btnSettings" aria-haspopup="true" aria-expanded="false" aria-label="Open settings">
-                            <i data-lucide="settings-2"></i>
-                        </button>
+                        <div class="topbar-actions">
+                            <button type="button" class="icon-btn" id="btnDownload" aria-label="Download PDF" title="Download">
+                                <i data-lucide="download"></i>
+                            </button>
+                            <button type="button" class="icon-btn" id="btnSave" aria-label="Save project" title="Save">
+                                <i data-lucide="save"></i>
+                            </button>
+                            <button type="button" class="icon-btn" id="btnReset" aria-label="Reset document" title="Reset">
+                                <i data-lucide="rotate-ccw"></i>
+                            </button>
+                            <div class="topbar-actions__sep"></div>
+                            <button type="button" class="icon-btn icon-btn--settings" id="btnSettings" aria-haspopup="true" aria-expanded="false" aria-label="Open settings" title="Settings">
+                                <i data-lucide="settings-2"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1984,13 +2285,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="preview-footer">
-                    <button type="button" class="btn btn--primary btn--download" id="btnDownload">
-                        <i data-lucide="download"></i>
-                        <span id="btnDownloadLabel">Download PDF</span>
-                    </button>
                 </div>
 
             </section>
@@ -2094,6 +2388,31 @@
                             <i data-lucide="shuffle"></i> Generate Sets
                         </button>
                         <p class="setting-hint" id="setGenStatus"></p>
+                    </div>
+                </section>
+
+                <section class="settings-section">
+                    <h3>AI (Google Gemini)</h3>
+                    <div class="setting-row">
+                        <label class="setting-row__label" for="inpGeminiKey">API Key</label>
+                    </div>
+                    <input type="password" id="inpGeminiKey" class="field-input" placeholder="Paste your Gemini API key" autocomplete="off" spellcheck="false">
+                    <p class="setting-hint">Free at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Stored only in this browser.</p>
+                    <div class="setting-row" style="margin-top:10px;">
+                        <label class="setting-row__label" for="selGeminiModel">Model</label>
+                        <select id="selGeminiModel" class="field-select">
+                            <option value="gemini-3-flash-preview">Gemini 3 Flash (recommended, free tier)</option>
+                            <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (fastest, low cost)</option>
+                            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</option>
+                            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <label class="setting-row__label" for="selAiInsertMode">On Generate</label>
+                        <select id="selAiInsertMode" class="field-select">
+                            <option value="append">Append to existing questions</option>
+                            <option value="replace">Replace all questions</option>
+                        </select>
                     </div>
                 </section>
 
@@ -2862,6 +3181,12 @@
                             execCommand(cmd);
                         }
                     }
+                    // Handle math/symbol insertion
+                    const symbolBtn = e.target.closest('.inline-toolbar .rt-math-symbol[data-symbol]');
+                    if (symbolBtn) {
+                        e.preventDefault();
+                        insertTextAtCursor(activeEditorEl, symbolBtn.dataset.symbol);
+                    }
                     // Handle color picker input
                     const colorInput = e.target.closest('.inline-toolbar .rt-color input[type="color"]');
                     if (colorInput) {
@@ -2897,11 +3222,6 @@
                             if (mathPanel) mathPanel.hidden = true;
                         });
                     }
-                });
-
-                // Header download
-                document.getElementById('btnHeaderDownload').addEventListener('click', () => {
-                    PdfGen.downloadDocument();
                 });
             }
 
@@ -3361,10 +3681,10 @@
             async function downloadDocument() {
                 const state = State.get();
                 const btn = document.getElementById('btnDownload');
-                const labelEl = document.getElementById('btnDownloadLabel');
-                const originalLabel = labelEl.textContent;
+                const originalIcon = btn.innerHTML;
                 btn.disabled = true;
-                labelEl.textContent = 'Generating…';
+                btn.innerHTML = '<i data-lucide="loader-2" class="ai-spin-icon"></i>';
+                if (window.lucide) lucide.createIcons();
                 try {
                     const missing = checkDependencies();
                     if (missing.length) { throw new Error(
@@ -3428,7 +3748,8 @@
                     console.error('PDF generation failed:', err);
                     App.toast('Unable to generate PDF. Please try again.', 'error');
                 } finally { btn.disabled = false;
-                    labelEl.textContent = originalLabel; }
+                    btn.innerHTML = originalIcon;
+                    if (window.lucide) lucide.createIcons(); }
             }
             return { downloadDocument };
         })();
@@ -3463,7 +3784,17 @@
             }
 
             function clear() { if (!checkAvailability()) return; try { localStorage.removeItem(KEY); } catch (e) { /* no-op */ } }
-            return { save, load, clear, checkAvailability };
+
+            const AI_KEY = 'mcqGenerator.ai.v1';
+            function saveAiSettings(settings) {
+                if (!checkAvailability()) return false;
+                try { localStorage.setItem(AI_KEY, JSON.stringify(settings)); return true; } catch (e) { return false; }
+            }
+            function loadAiSettings() {
+                if (!checkAvailability()) return null;
+                try { const raw = localStorage.getItem(AI_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+            }
+            return { save, load, clear, checkAvailability, saveAiSettings, loadAiSettings };
         })();
 
 
@@ -3569,6 +3900,11 @@
                 document.getElementById('selNumSets').value = String(state.setCode.numberOfSets);
                 document.getElementById('inpSetNames').value = state.setCode.codeNames;
                 document.getElementById('selRandomType').value = state.setCode.randomization;
+
+                const aiSettings = Storage.loadAiSettings() || {};
+                document.getElementById('inpGeminiKey').value = aiSettings.apiKey || '';
+                document.getElementById('selGeminiModel').value = aiSettings.model || 'gemini-3-flash-preview';
+                document.getElementById('selAiInsertMode').value = aiSettings.insertMode || 'append';
             }
 
             function bindEvents() {
@@ -3635,9 +3971,396 @@
                     if (e.key === 'Escape' && document.getElementById('settingsDrawer').classList.contains(
                             'is-open')) closeDrawer();
                 });
+
+                const persistAiSettings = () => {
+                    Storage.saveAiSettings({
+                        apiKey: document.getElementById('inpGeminiKey').value.trim(),
+                        model: document.getElementById('selGeminiModel').value,
+                        insertMode: document.getElementById('selAiInsertMode').value
+                    });
+                };
+                document.getElementById('inpGeminiKey').addEventListener('input', Utils.debounce(persistAiSettings, 250));
+                document.getElementById('selGeminiModel').addEventListener('change', persistAiSettings);
+                document.getElementById('selAiInsertMode').addEventListener('change', persistAiSettings);
+            }
+            function getAiSettings() {
+                const saved = Storage.loadAiSettings() || {};
+                return {
+                    apiKey: saved.apiKey || '',
+                    model: saved.model || 'gemini-3-flash-preview',
+                    insertMode: saved.insertMode || 'append'
+                };
             }
             return { bindEvents, syncFormFromState, buildColorPresets, populateFontOptions, openDrawer,
-            closeDrawer };
+            closeDrawer, getAiSettings };
+        })();
+
+
+        /* ================================================================
+           AI (Google Gemini) — capture / upload / generate MCQs
+           ================================================================ */
+        const AiGenerator = (() => {
+            let mediaStream = null;
+            let capturedFile = null; // { data, mimeType, name, kind: 'image' | 'pdf' }
+
+            function el(id) { return document.getElementById(id); }
+
+            function resetStage() {
+                stopCamera();
+                capturedFile = null;
+                el('aiCapturePlaceholder').hidden = false;
+                el('aiCameraVideo').hidden = true;
+                el('aiCapturedImage').hidden = true;
+                el('aiCapturedImage').removeAttribute('src');
+                el('aiCapturedDoc').hidden = true;
+                el('btnAiRemoveImage').hidden = true;
+                el('aiShutterRow').hidden = true;
+                setStatus('');
+            }
+
+            function setStatus(message, tone = 'default') {
+                const statusEl = el('aiStatus');
+                statusEl.classList.toggle('is-error', tone === 'error');
+                if (!message) { statusEl.innerHTML = ''; return; }
+                if (tone === 'loading') {
+                    statusEl.innerHTML = `<span class="ai-spinner"></span><span>${escapeHtml(message)}</span>`;
+                } else {
+                    statusEl.textContent = message;
+                }
+            }
+
+            function escapeHtml(str) { const d = document.createElement('div');
+                d.textContent = str; return d.innerHTML; }
+
+            async function stopCamera() {
+                if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop());
+                    mediaStream = null; }
+            }
+
+            async function startCamera() {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    setStatus('Camera is not supported in this browser.', 'error');
+                    return;
+                }
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+                        audio: false
+                    });
+                    const video = el('aiCameraVideo');
+                    video.srcObject = mediaStream;
+                    el('aiCapturePlaceholder').hidden = true;
+                    video.hidden = false;
+                    el('aiCapturedImage').hidden = true;
+                    el('aiCapturedDoc').hidden = true;
+                    el('btnAiRemoveImage').hidden = false;
+                    el('aiShutterRow').hidden = false;
+                } catch (e) {
+                    console.error(e);
+                    setStatus('Could not access the camera. Check permissions and try again.', 'error');
+                }
+            }
+
+            function capturePhoto() {
+                const video = el('aiCameraVideo');
+                if (!video.videoWidth) return;
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+                stopCamera();
+                showCapturedImage(dataUrl, 'image/jpeg');
+            }
+
+            function showCapturedImage(dataUrl, mimeType) {
+                const base64 = dataUrl.split(',')[1];
+                capturedFile = { data: base64, mimeType, name: 'captured-photo.jpg', kind: 'image' };
+                const img = el('aiCapturedImage');
+                img.src = dataUrl;
+                el('aiCapturePlaceholder').hidden = true;
+                el('aiCameraVideo').hidden = true;
+                el('aiCapturedDoc').hidden = true;
+                img.hidden = false;
+                el('btnAiRemoveImage').hidden = false;
+                el('aiShutterRow').hidden = true;
+            }
+
+            function showCapturedDoc(dataUrl, mimeType, name) {
+                const base64 = dataUrl.split(',')[1];
+                capturedFile = { data: base64, mimeType, name, kind: 'pdf' };
+                el('aiCapturePlaceholder').hidden = true;
+                el('aiCameraVideo').hidden = true;
+                el('aiCapturedImage').hidden = true;
+                el('aiCapturedDocName').textContent = name;
+                el('aiCapturedDoc').hidden = false;
+                el('btnAiRemoveImage').hidden = false;
+                el('aiShutterRow').hidden = true;
+            }
+
+            function handleFileSelected(file) {
+                if (!file) return;
+                const isImage = file.type.startsWith('image/');
+                const isPdf = file.type === 'application/pdf';
+                if (!isImage && !isPdf) {
+                    if (/\.(ppt|pptx|doc|docx|xls|xlsx)$/i.test(file.name)) {
+                        setStatus('PowerPoint and Word files aren\u2019t supported yet — please upload a photo or a PDF of the page instead.', 'error');
+                    } else {
+                        setStatus('Please choose an image (JPG/PNG) or a PDF file.', 'error');
+                    }
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = () => {
+                    if (isPdf) { showCapturedDoc(reader.result, 'application/pdf', file.name); }
+                    else { showCapturedImage(reader.result, file.type || 'image/jpeg'); }
+                };
+                reader.onerror = () => setStatus('Could not read that file.', 'error');
+                reader.readAsDataURL(file);
+            }
+
+            function openModal({ startCameraImmediately } = {}) {
+                resetStage();
+                const settings = Settings.getAiSettings();
+                el('aiKeyHint').hidden = !!settings.apiKey;
+                el('aiModalOverlay').hidden = false;
+                if (window.lucide) lucide.createIcons();
+                if (startCameraImmediately) startCamera();
+            }
+
+            function closeModal() {
+                stopCamera();
+                el('aiModalOverlay').hidden = true;
+            }
+
+            function buildPrompt(userPrompt) {
+                const sourceDesc = capturedFile && capturedFile.kind === 'pdf'
+                    ? 'attached PDF document'
+                    : 'attached image of a page';
+                const instruction = `You are an expert exam-question writer. Look at the ${sourceDesc} (it may contain English text, Bangla (Bengali) text, or mathematical content/equations). Based on the content and the user's request below, generate multiple-choice questions (MCQs).
+
+User's request: "${userPrompt}"
+
+Respond with ONLY valid JSON (no markdown fences, no commentary) matching exactly this schema:
+{
+  "questions": [
+    {
+      "question": "question text (use plain text; for math use standard notation like x^2, sqrt(x), etc.)",
+      "options": ["option A text", "option B text", "option C text", "option D text"],
+      "correctIndex": 0,
+      "explanation": "brief explanation of the correct answer"
+    }
+  ]
+}
+Rules:
+- Write the question and options in the same language as the source content (English or Bangla), unless the user's request explicitly asks for a different language.
+- Always produce exactly 4 options per question unless the user's request specifies a different number of options.
+- correctIndex is a zero-based index (0-3) pointing to the correct option.
+- Base every question strictly on content visible in the source.
+- Return ONLY the JSON object, nothing else.`;
+                return instruction;
+            }
+
+            // Known-good model IDs to fall back through, in order, if the chosen model
+            // has been retired ("no longer available to new users" / 404 NOT_FOUND).
+            const FALLBACK_MODELS = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+
+            async function requestGeneration(model, userPrompt) {
+                const settings = Settings.getAiSettings();
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(settings.apiKey)}`;
+                const body = {
+                    contents: [{
+                        parts: [
+                            { text: buildPrompt(userPrompt) },
+                            { inline_data: { mime_type: capturedFile.mimeType, data: capturedFile.data } }
+                        ]
+                    }],
+                    generationConfig: { temperature: 0.4, responseMimeType: 'application/json' }
+                };
+
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (!res.ok) {
+                    let msg = `Request failed (${res.status})`;
+                    let retired = false;
+                    try {
+                        const errJson = await res.json();
+                        if (errJson && errJson.error && errJson.error.message) {
+                            msg = errJson.error.message;
+                            retired = res.status === 404 && /no longer available/i.test(msg);
+                        }
+                    } catch (e) {}
+                    const err = new Error(msg);
+                    err.retired = retired;
+                    err.status = res.status;
+                    throw err;
+                }
+                return res.json();
+            }
+
+            async function callGemini(userPrompt) {
+                const settings = Settings.getAiSettings();
+                if (!settings.apiKey) throw new Error('MISSING_KEY');
+                if (!capturedFile) throw new Error('MISSING_IMAGE');
+
+                // Try the user's chosen model first, then fall back through known-good
+                // models if it's been retired by Google (common with fast-moving Gemini releases).
+                const modelsToTry = [settings.model, ...FALLBACK_MODELS.filter(m => m !== settings.model)];
+                let data = null;
+                let lastError = null;
+
+                for (const model of modelsToTry) {
+                    try {
+                        data = await requestGeneration(model, userPrompt);
+                        if (model !== settings.model) {
+                            App.toast(`"${settings.model}" is unavailable — used "${model}" instead`, 'default');
+                        }
+                        break;
+                    } catch (e) {
+                        lastError = e;
+                        if (e.retired) continue; // try next fallback model
+                        throw e; // any other error (bad key, quota, network) — stop immediately
+                    }
+                }
+                if (!data) throw lastError || new Error('All models are currently unavailable. Please try again later.');
+
+                const candidate = data.candidates && data.candidates[0];
+                const text = candidate && candidate.content && candidate.content.parts
+                    ? candidate.content.parts.map(p => p.text || '').join('')
+                    : '';
+                if (!text) throw new Error('The model returned an empty response. Try a clearer image.');
+
+                let cleaned = text.trim();
+                cleaned = cleaned.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '');
+                let parsed;
+                try { parsed = JSON.parse(cleaned); } catch (e) {
+                    const match = cleaned.match(/\{[\s\S]*\}/);
+                    if (match) { try { parsed = JSON.parse(match[0]); } catch (e2) { /* fallthrough */ } }
+                }
+                if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+                    throw new Error('Could not understand the AI response. Try rephrasing your prompt.');
+                }
+                return parsed.questions;
+            }
+
+            function insertQuestions(aiQuestions) {
+                const state = State.get();
+                const settings = Settings.getAiSettings();
+                const optionIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+                const converted = aiQuestions.map(q => {
+                    const opts = Array.isArray(q.options) ? q.options : [];
+                    const correctIdx = Number.isInteger(q.correctIndex) ? q.correctIndex : -1;
+                    return {
+                        id: Utils.uid('q'),
+                        question: { html: escapeHtml(String(q.question || '').trim()) },
+                        optionsLayout: 'vertical',
+                        explanationHtml: q.explanation ? escapeHtml(String(q.explanation).trim()) : '',
+                        options: opts.slice(0, 8).map((optText, i) => ({
+                            id: optionIds[i] || String(i),
+                            html: escapeHtml(String(optText || '').trim()),
+                            correct: i === correctIdx
+                        }))
+                    };
+                }).filter(q => Utils.stripHtml(q.question.html) !== '');
+
+                if (converted.length === 0) throw new Error('No usable questions were generated.');
+
+                if (settings.insertMode === 'replace') {
+                    state.questions = converted;
+                } else {
+                    const isBlankSeed = state.questions.length === 1 &&
+                        Utils.stripHtml(state.questions[0].question.html) === '' &&
+                        state.questions[0].options.every(o => Utils.stripHtml(o.html) === '');
+                    if (isBlankSeed) { state.questions = converted; } else { state.questions.push(...converted); }
+                }
+
+                Editor.renderQuestions();
+                Preview.update();
+                return converted.length;
+            }
+
+            async function handleGenerateClick() {
+                const settings = Settings.getAiSettings();
+                if (!settings.apiKey) {
+                    el('aiKeyHint').hidden = false;
+                    setStatus('Add your Gemini API key in Settings → AI first.', 'error');
+                    return;
+                }
+                if (!capturedFile) {
+                    setStatus('Capture a photo or upload a file first.', 'error');
+                    return;
+                }
+                const userPrompt = el('aiPromptInput').value.trim() || 'Generate MCQ questions from this content.';
+                const btn = el('btnAiGenerate');
+                btn.disabled = true;
+                setStatus('Analyzing the file and generating questions…', 'loading');
+                try {
+                    const questions = await callGemini(userPrompt);
+                    const count = insertQuestions(questions);
+                    setStatus('');
+                    closeModal();
+                    App.toast(`${count} MCQ${count === 1 ? '' : 's'} generated`, 'success');
+                } catch (e) {
+                    console.error(e);
+                    if (e.message === 'MISSING_KEY') {
+                        el('aiKeyHint').hidden = false;
+                        setStatus('Add your Gemini API key in Settings → AI first.', 'error');
+                    } else if (e.message === 'MISSING_IMAGE') {
+                        setStatus('Capture a photo or upload a file first.', 'error');
+                    } else {
+                        setStatus(e.message || 'Something went wrong. Please try again.', 'error');
+                    }
+                } finally {
+                    btn.disabled = false;
+                }
+            }
+
+            function applyChip(chip) {
+                const textarea = el('aiPromptInput');
+                const map = {
+                    en: ' Write the questions in English.',
+                    bn: ' প্রশ্নগুলো বাংলায় লিখুন।',
+                    math: ' Focus on mathematical/numerical problems, preserving equations and symbols accurately.',
+                    5: ' Generate exactly 5 questions.',
+                    10: ' Generate exactly 10 questions.'
+                };
+                const addition = map[chip];
+                if (!addition) return;
+                if (!textarea.value.includes(addition.trim())) {
+                    textarea.value = (textarea.value.trim() + addition).trim();
+                }
+                textarea.focus();
+            }
+
+            function bindEvents() {
+                el('btnAiMode').addEventListener('click', () => openModal({}));
+                el('btnAiStartCamera').addEventListener('click', startCamera);
+                el('btnAiPickFile').addEventListener('click', () => el('aiFileInput').click());
+                el('btnAiShutter').addEventListener('click', capturePhoto);
+                el('btnAiRemoveImage').addEventListener('click', resetStage);
+                el('btnCloseAiModal').addEventListener('click', closeModal);
+                el('btnAiCancel').addEventListener('click', closeModal);
+                el('btnAiGenerate').addEventListener('click', handleGenerateClick);
+                el('aiModalOverlay').addEventListener('click', (e) => { if (e.target.id === 'aiModalOverlay') closeModal(); });
+                el('aiFileInput').addEventListener('change', (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (file) handleFileSelected(file);
+                    e.target.value = '';
+                });
+                document.querySelectorAll('.ai-chip').forEach(chip => {
+                    chip.addEventListener('click', () => applyChip(chip.dataset.chip));
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && !el('aiModalOverlay').hidden) closeModal();
+                });
+            }
+
+            return { bindEvents, openModal, closeModal };
         })();
 
 
@@ -3856,6 +4579,7 @@
                 bindDownload();
                 bindLanguageSwitch();
                 Settings.bindEvents();
+                AiGenerator.bindEvents();
                 fullRerender();
                 if (saved) toast('Restored your saved project', 'default');
                 if (window.lucide) lucide.createIcons();
@@ -3878,6 +4602,63 @@
             return { toast, requestReset, requestDeleteQuestion, handleSave };
         })();
     </script>
+
+    <!-- ===== AI CAPTURE MODAL (rendered outside .app-container so it can never be clipped by ancestor overflow on mobile browsers) ===== -->
+    <div class="ai-modal-overlay" id="aiModalOverlay" hidden>
+        <div class="ai-modal" role="dialog" aria-modal="true" aria-labelledby="aiModalTitle">
+            <div class="ai-modal__head">
+                <h2 id="aiModalTitle"><i data-lucide="sparkles"></i> Generate MCQs with AI</h2>
+                <button type="button" class="icon-btn" id="btnCloseAiModal" aria-label="Close"><i data-lucide="x"></i></button>
+            </div>
+            <div class="ai-modal__body">
+
+                <div id="aiKeyHint" class="ai-key-hint" hidden>
+                    <i data-lucide="key-round"></i>
+                    <span>Add a free Google Gemini API key in <strong>Settings → AI</strong> to generate questions. Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.</span>
+                </div>
+
+                <div class="ai-capture-stage" id="aiCaptureStage">
+                    <div class="ai-capture-placeholder" id="aiCapturePlaceholder">
+                        <i data-lucide="image-plus"></i>
+                        <span>No file selected yet</span>
+                        <div class="ai-capture-placeholder__actions">
+                            <button type="button" class="btn btn--secondary" id="btnAiStartCamera"><i data-lucide="camera"></i>Capture</button>
+                            <button type="button" class="btn btn--secondary" id="btnAiPickFile"><i data-lucide="upload"></i>Upload</button>
+                        </div>
+                        <span class="ai-capture-placeholder__hint">JPG/PNG or PDF</span>
+                    </div>
+                    <video id="aiCameraVideo" autoplay playsinline hidden></video>
+                    <img id="aiCapturedImage" alt="Captured page" hidden>
+                    <div class="ai-capture-doc-preview" id="aiCapturedDoc" hidden>
+                        <i data-lucide="file-text"></i>
+                        <span id="aiCapturedDocName">document.pdf</span>
+                    </div>
+                    <button type="button" class="ai-capture-stage__remove" id="btnAiRemoveImage" hidden aria-label="Remove file"><i data-lucide="trash-2"></i></button>
+                </div>
+
+                <div class="ai-capture-shutter-row" id="aiShutterRow" hidden>
+                    <button type="button" class="ai-shutter-btn" id="btnAiShutter" aria-label="Capture photo"><i data-lucide="circle"></i></button>
+                </div>
+
+                <div class="ai-modal__field">
+                    <label for="aiPromptInput">Prompt <span style="font-weight:400;color:var(--text-faint);">(what kind of MCQs to generate)</span></label>
+                    <textarea id="aiPromptInput" class="ai-prompt-textarea" placeholder="e.g. Generate 5 MCQs from this page, medium difficulty, include the correct answer.">Generate MCQ questions from the text of the captured or uploaded item. Include 4 options each and mark the correct answer with proper explannation.</textarea>
+                    <div class="ai-quick-chips">
+                        <button type="button" class="ai-chip" data-chip="en">English questions</button>
+                        <button type="button" class="ai-chip" data-chip="bn">বাংলা প্রশ্ন তৈরি করুন</button>
+                        <button type="button" class="ai-chip" data-chip="5">15 questions</button>
+                        <button type="button" class="ai-chip" data-chip="10">30 questions</button>
+                    </div>
+                </div>
+
+                <div class="ai-modal__status" id="aiStatus"></div>
+            </div>
+            <div class="ai-modal__foot">
+                <button type="button" class="btn btn--ghost btn--full" id="btnAiCancel">Cancel</button>
+                <button type="button" class="btn btn--primary btn--full" id="btnAiGenerate"><i data-lucide="sparkles"></i> Generate MCQs</button>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
