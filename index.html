@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-    <title>MCQ Pro - AI Based MCQ Generator</title>
+    <title>MCQ Pro - AI Powered MCQ Generator</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -86,6 +86,7 @@
         html,
         body {
             height: 100%;
+            height: 100dvh;
             margin: 0;
             background: var(--bg);
             color: var(--text);
@@ -1647,7 +1648,7 @@
         }
 
         .paper-wrap--multipage .paper[data-page]::before {
-            content: "Page " attr(data-page);
+            content: attr(data-page-label);
             position: absolute;
             top: -26px;
             left: 0;
@@ -1731,16 +1732,19 @@
         }
         .doc-question__text {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             font-weight: 500;
             margin-bottom: 5px;
         }
         .doc-question__number {
             flex-shrink: 0;
+            width: 1.5em;
+            min-width: 1.5em;
             font-weight: 700;
         }
         .doc-question__content {
             flex: 1;
+            min-width: 0;
             word-break: break-word;
         }
         .doc-question__content sup,
@@ -1753,7 +1757,7 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            padding-left: 4px;
+            padding-left: 0;
         }
         .doc-options--vertical {
             display: flex;
@@ -1810,13 +1814,25 @@
             font-weight: 700;
         }
         .doc-explanation {
-            margin: 4px 0 0 1.5em;
+            display: flex;
+            align-items: flex-start;
+            margin: 4px 0 0 0;
             padding: 4px 0 0;
             font-size: 0.88em;
             font-style: italic;
             color: #374151;
             line-height: 1.4;
             word-break: break-word;
+        }
+        .doc-explanation__label {
+            flex-shrink: 0;
+            width: 1.5em;
+            min-width: 1.5em;
+            font-weight: 700;
+        }
+        .doc-explanation__text {
+            flex: 1;
+            min-width: 0;
         }
         .doc-explanation__label {
             font-style: normal;
@@ -1938,7 +1954,9 @@
                 z-index: 39;
                 margin: 0 4px;
                 border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-                overflow: hidden;
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
             }
             .mobile-tabs__btn {
                 flex: 1;
@@ -2013,6 +2031,17 @@
                 width: 28px;
                 height: 28px;
                 font-size: 12px;
+            }
+            .btn--add-question {
+                position: sticky;
+                bottom: calc(-14px - env(safe-area-inset-bottom));
+                margin-top: 14px;
+                margin-bottom: calc(-14px - env(safe-area-inset-bottom));
+                padding: 12px;
+                padding-bottom: calc(12px + env(safe-area-inset-bottom));
+                background: var(--panel);
+                box-shadow: 0 -8px 12px -4px rgba(0, 0, 0, 0.15);
+                z-index: 5;
             }
             .question-card__head {
                 padding: 8px 10px;
@@ -2229,7 +2258,7 @@
 
                     <!-- Questions -->
                     <div class="questions-head">
-                        <h2>Questions</h2>
+                        <h2>Add Questions</h2>
                         <span class="questions-head__count" id="questionCount">1 question</span>
                     </div>
 
@@ -2301,7 +2330,6 @@
             <div class="settings-drawer__body">
 
                 <section class="settings-section">
-                    <h3>Appearance</h3>
                     <div class="setting-row">
                         <span class="setting-row__label">Theme</span>
                         <div class="segmented" role="group" aria-label="Application theme">
@@ -2310,9 +2338,7 @@
                         </div>
                     </div>
                 </section>
-
                 <section class="settings-section">
-                    <h3>Page Setup</h3>
                     <div class="setting-row">
                         <label class="setting-row__label" for="selPageSize">Page Size</label>
                         <select id="selPageSize" class="field-select">
@@ -2332,7 +2358,6 @@
                 </section>
 
                 <section class="settings-section">
-                    <h3>Document Formatting</h3>
                     <div class="setting-row">
                         <label class="setting-row__label" for="selFontFamily">Font Family</label>
                         <select id="selFontFamily" class="field-select"></select>
@@ -2355,7 +2380,6 @@
                 </section>
 
                 <section class="settings-section">
-                    <h3>Set Code &amp; Randomization</h3>
                     <div class="setting-row">
                         <span class="setting-row__label">Set Code</span>
                         <label class="switch">
@@ -2392,17 +2416,16 @@
                 </section>
 
                 <section class="settings-section">
-                    <h3>AI (Google Gemini)</h3>
                     <div class="setting-row">
-                        <label class="setting-row__label" for="inpGeminiKey">API Key</label>
+                        <label class="setting-row__label" for="inpGeminiKey">Gemini API Key</label>
                     </div>
                     <input type="password" id="inpGeminiKey" class="field-input" placeholder="Paste your Gemini API key" autocomplete="off" spellcheck="false">
-                    <p class="setting-hint">Free at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Stored only in this browser.</p>
+                    <p class="setting-hint">Add your API from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>
                     <div class="setting-row" style="margin-top:10px;">
                         <label class="setting-row__label" for="selGeminiModel">Model</label>
                         <select id="selGeminiModel" class="field-select">
-                            <option value="gemini-3-flash-preview">Gemini 3 Flash (recommended, free tier)</option>
-                            <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (fastest, low cost)</option>
+                            <option value="gemini-3-flash-preview">Gemini 3 Flash (Recommended)</option>
+                            <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Fastest)</option>
                             <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</option>
                             <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
                         </select>
@@ -2589,15 +2612,35 @@
             function updateQuestionHtml(id, html) { const q = appState.questions.find(q => q.id === id); if (q) q.question
                     .html = html; }
 
+            // Picks the layout (vertical / horizontal / grid) that best fits the
+            // current option text lengths. Only used for questions whose layout
+            // hasn't been manually chosen by the user (see layoutLocked).
+            function computeAutoLayout(q) {
+                const texts = q.options.map(o => Utils.stripHtml(o.html || ''));
+                const lengths = texts.map(t => t.length);
+                const maxLen = Math.max(0, ...lengths);
+                const totalLen = lengths.reduce((a, b) => a + b, 0);
+                const hasContent = totalLen > 0;
+                if (!hasContent) return 'vertical';
+                // Short options (like single letters/numbers/short words) fit nicely
+                // side-by-side in a grid or horizontal row. Long options need the
+                // full width, so they stay vertical.
+                if (maxLen <= 6 && totalLen <= 20) return 'horizontal';
+                if (maxLen <= 18 && totalLen <= 56) return 'grid';
+                return 'vertical';
+            }
+
             function updateOptionHtml(questionId, optionId, html) {
                 const q = appState.questions.find(q => q.id === questionId);
                 if (!q) return;
                 const opt = q.options.find(o => o.id === optionId);
                 if (opt) opt.html = html;
+                if (!q.layoutLocked) q.optionsLayout = computeAutoLayout(q);
             }
 
-            function setQuestionLayout(id, layout) { const q = appState.questions.find(q => q.id === id); if (q) q
-                    .optionsLayout = layout; }
+            function setQuestionLayout(id, layout) { const q = appState.questions.find(q => q.id === id); if (q) {
+                    q.optionsLayout = layout;
+                    q.layoutLocked = true; } }
 
             function toggleOptionCorrect(questionId, optionId) {
                 const q = appState.questions.find(q => q.id === questionId);
@@ -2616,7 +2659,8 @@
             }
             return { get, replaceAll, resetToDefault, defaultState, setLanguage, setDocField, setSetting,
                 setSetCodeField, addQuestion, deleteQuestion, duplicateQuestion, moveQuestion, updateQuestionHtml,
-                updateOptionHtml, setQuestionLayout, freshQuestion, toggleOptionCorrect, updateQuestionExplanation };
+                updateOptionHtml, setQuestionLayout, freshQuestion, toggleOptionCorrect, updateQuestionExplanation,
+                computeAutoLayout };
         })();
 
 
@@ -3088,6 +3132,7 @@
 
                 bindEditableEvents(editor, (html) => {
                     State.updateOptionHtml(questionId, opt.id, html);
+                    syncLayoutPickerUI(questionId);
                     Preview.update();
                 });
 
@@ -3101,6 +3146,17 @@
                 });
 
                 return row;
+            }
+
+            function syncLayoutPickerUI(questionId) {
+                const state = State.get();
+                const q = state.questions.find(q => q.id === questionId);
+                if (!q) return;
+                const card = document.querySelector(`.question-card[data-id="${questionId}"]`);
+                if (!card) return;
+                card.querySelectorAll('.layout-btn').forEach(btn => {
+                    btn.classList.toggle('is-active', btn.dataset.layout === (q.optionsLayout || 'vertical'));
+                });
             }
 
             function setEditorContent(el, html) { el.innerHTML = html || '';
@@ -3450,7 +3506,7 @@
                 document.getElementById('zoomValue').textContent = `${zoom}%`;
             }
 
-            function renderDocumentBody() {
+            function renderDocumentBody(resetScroll) {
                 const state = State.get();
                 const lang = state.language;
                 const doc = state.document;
@@ -3473,9 +3529,12 @@
                         .settings.pageSize);
                 }
 
-                wrap.innerHTML = pageHtmlList.map((pageHtml, i) =>
-                    `<div class="paper" id="${i === 0 ? 'paper' : ''}" data-page="${i + 1}" role="img" aria-label="Question paper preview, page ${i + 1}">${pageHtml}</div>`
-                ).join('');
+                wrap.innerHTML = pageHtmlList.map((pageHtml, i) => {
+                    const pageLabel = lang === 'bn' ?
+                        `পৃষ্ঠা ${Utils.toBanglaNumber(i + 1)}` :
+                        `Page ${Utils.toEnglishNumber(i + 1)}`;
+                    return `<div class="paper" id="${i === 0 ? 'paper' : ''}" data-page="${i + 1}" data-page-label="${pageLabel}" role="img" aria-label="Question paper preview, page ${i + 1}">${pageHtml}</div>`;
+                }).join('');
 
                 wrap.classList.toggle('paper-wrap--multipage', pageHtmlList.length > 1);
 
@@ -3487,10 +3546,10 @@
                         const total = pageHtmlList.length;
                         if (lang === 'bn') {
                             footer.textContent =
-                                `পৃষ্ঠা ${Utils.toBanglaNumber(pageNum)} / ${Utils.toBanglaNumber(total)}`;
+                                `পৃষ্ঠা ${Utils.toBanglaNumber(pageNum)}/${Utils.toBanglaNumber(total)}`;
                         } else {
                             footer.textContent =
-                                `Page ${Utils.toEnglishNumber(pageNum)} / ${Utils.toEnglishNumber(total)}`;
+                                `Page ${Utils.toEnglishNumber(pageNum)}/${Utils.toEnglishNumber(total)}`;
                         }
                         paperEl.appendChild(footer);
                     });
@@ -3508,8 +3567,10 @@
                     applyZoom();
                 }
 
-                const container = document.getElementById('previewContainer');
-                if (container) container.scrollTop = 0;
+                if (resetScroll) {
+                    const container = document.getElementById('previewContainer');
+                    if (container) container.scrollTop = 0;
+                }
             }
 
             function renderSetPicker() {
@@ -3527,10 +3588,10 @@
                 select.value = String(state.activeSetIndex);
             }
 
-            const update = Utils.debounce(() => { renderDocumentBody();
+            const update = Utils.debounce((resetScroll) => { renderDocumentBody(!!resetScroll);
                 renderSetPicker(); }, 60);
 
-            function updateImmediate() { renderDocumentBody();
+            function updateImmediate(resetScroll) { renderDocumentBody(!!resetScroll);
                 renderSetPicker(); }
 
             return { update, updateImmediate, applyZoom, applyPaperDimensions, computeFitZoom, PAGE_SIZES_MM,
@@ -3651,8 +3712,17 @@
                         withAnswers)];
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: unitFormat });
+                const totalPages = pageHtmlList.length;
                 for (let i = 0; i < pageHtmlList.length; i++) {
-                    const canvas = await rasterizePage(pageHtmlList[i], widthPx, heightPx, state.settings.pageColor);
+                    let pageHtml = pageHtmlList[i];
+                    if (totalPages > 1) {
+                        const pageNum = i + 1;
+                        const pageLabelText = lang === 'bn' ?
+                            `পৃষ্ঠা ${Utils.toBanglaNumber(pageNum)}/${Utils.toBanglaNumber(totalPages)}` :
+                            `Page ${Utils.toEnglishNumber(pageNum)}/${Utils.toEnglishNumber(totalPages)}`;
+                        pageHtml += `<div class="doc__pagenum">${DocRenderer.escapeHtml(pageLabelText)}</div>`;
+                    }
+                    const canvas = await rasterizePage(pageHtml, widthPx, heightPx, state.settings.pageColor);
                     const imgData = canvas.toDataURL('image/jpeg', 0.95);
                     const renderedHeightMm = (canvas.height / canvas.width) * dims.w;
                     if (i > 0) pdf.addPage(unitFormat, 'portrait');
@@ -4145,7 +4215,7 @@ Respond with ONLY valid JSON (no markdown fences, no commentary) matching exactl
 {
   "questions": [
     {
-      "question": "question text (use plain text; for math use standard notation like x^2, sqrt(x), etc.)",
+      "question": "question text (plain text, using real math symbols as described below)",
       "options": ["option A text", "option B text", "option C text", "option D text"],
       "correctIndex": 0,
       "explanation": "brief explanation of the correct answer"
@@ -4157,6 +4227,14 @@ Rules:
 - Always produce exactly 4 options per question unless the user's request specifies a different number of options.
 - correctIndex is a zero-based index (0-3) pointing to the correct option.
 - Base every question strictly on content visible in the source.
+- MATH FORMATTING - this is important: never use plain-text notation like x^2, sqrt(x), x_2, or ->. Instead use the actual Unicode characters directly in the text:
+  - Superscripts/powers: ² ³ ⁴ (e.g. write "x²" not "x^2")
+  - Subscripts: ₂ ₃ (e.g. write "H₂O" not "H_2O")
+  - Roots: √ ∛ (e.g. "√x" not "sqrt(x)")
+  - Fractions: ½ ⅓ ¼ ⅔ ¾ ⅕ ⅖ ⅗ ⅘ ⅙ ⅚ ⅛ ⅜ ⅝ ⅞ where they fit, otherwise write as "a/b"
+  - Operators/comparisons: × ÷ ± ≈ ≠ ≤ ≥ ∝ ∑ ∫ ∞ →  ⇌ · °
+  - Greek letters: α β γ δ θ λ μ π Ω Δ ∂ ∇
+  - If an exponent or subscript is not one of ² ³ ⁴ ₂ ₃ (e.g. a variable exponent like x^n), write it in parentheses like "x^(n)" as a fallback, but always prefer a real Unicode character when one exists.
 - Return ONLY the JSON object, nothing else.`;
                 return instruction;
             }
@@ -4268,6 +4346,8 @@ Rules:
                     };
                 }).filter(q => Utils.stripHtml(q.question.html) !== '');
 
+                converted.forEach(q => { q.optionsLayout = State.computeAutoLayout(q); });
+
                 if (converted.length === 0) throw new Error('No usable questions were generated.');
 
                 if (settings.insertMode === 'replace') {
@@ -4280,7 +4360,7 @@ Rules:
                 }
 
                 Editor.renderQuestions();
-                Preview.update();
+                Preview.update(true);
                 return converted.length;
             }
 
@@ -4323,11 +4403,11 @@ Rules:
             function applyChip(chip) {
                 const textarea = el('aiPromptInput');
                 const map = {
-                    en: ' Write the questions in English.',
-                    bn: ' প্রশ্নগুলো বাংলায় লিখুন।',
-                    math: ' Focus on mathematical/numerical problems, preserving equations and symbols accurately.',
-                    5: ' Generate exactly 5 questions.',
-                    10: ' Generate exactly 10 questions.'
+                    en: ' Write the questions in English. ',
+                    bn: ' প্রশ্নগুলো বাংলায় লিখুন। ',
+                    math: ' Focus on mathematical/numerical problems, preserving equations and symbols accurately. ',
+                    30: ' Generate exactly 30 questions. ',
+                    50: ' Generate exactly 50 questions. '
                 };
                 const addition = map[chip];
                 if (!addition) return;
@@ -4504,7 +4584,7 @@ Rules:
                 document.getElementById('btnAddQuestion').addEventListener('click', () => {
                     State.addQuestion();
                     Editor.renderQuestions();
-                    Preview.update();
+                    Preview.update(true);
                     const cards = document.querySelectorAll('.question-card');
                     const lastCard = cards[cards.length - 1];
                     if (lastCard) { lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -4542,7 +4622,7 @@ Rules:
                 syncDocumentFieldsFromState();
                 Settings.syncFormFromState();
                 Editor.renderQuestions();
-                Preview.updateImmediate();
+                Preview.updateImmediate(true);
 
                 const container = document.getElementById('previewContainer');
                 const pageSize = state.settings.pageSize;
@@ -4614,7 +4694,7 @@ Rules:
 
                 <div id="aiKeyHint" class="ai-key-hint" hidden>
                     <i data-lucide="key-round"></i>
-                    <span>Add a free Google Gemini API key in <strong>Settings → AI</strong> to generate questions. Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.</span>
+                    <span>Add a free Google Gemini API Key  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.</span>
                 </div>
 
                 <div class="ai-capture-stage" id="aiCaptureStage">
@@ -4631,7 +4711,7 @@ Rules:
                     <img id="aiCapturedImage" alt="Captured page" hidden>
                     <div class="ai-capture-doc-preview" id="aiCapturedDoc" hidden>
                         <i data-lucide="file-text"></i>
-                        <span id="aiCapturedDocName">document.pdf</span>
+                        <span id="aiCapturedDocName">Document</span>
                     </div>
                     <button type="button" class="ai-capture-stage__remove" id="btnAiRemoveImage" hidden aria-label="Remove file"><i data-lucide="trash-2"></i></button>
                 </div>
@@ -4641,13 +4721,13 @@ Rules:
                 </div>
 
                 <div class="ai-modal__field">
-                    <label for="aiPromptInput">Prompt <span style="font-weight:400;color:var(--text-faint);">(what kind of MCQs to generate)</span></label>
-                    <textarea id="aiPromptInput" class="ai-prompt-textarea" placeholder="e.g. Generate 15 MCQs from this page, medium difficulty, include the correct answer and explannation."></textarea>
+                    <label for="aiPromptInput">Instruction for MCQ Generation</label>
+                    <textarea id="aiPromptInput" class="ai-prompt-textarea" placeholder="Generate 30 MCQs from this page, medium difficulty, include the correct answer and explannation."></textarea>
                     <div class="ai-quick-chips">
-                        <button type="button" class="ai-chip" data-chip="en">English questions</button>
+                        <button type="button" class="ai-chip" data-chip="en">English Questions</button>
                         <button type="button" class="ai-chip" data-chip="bn">বাংলা প্রশ্ন তৈরি করুন</button>
-                        <button type="button" class="ai-chip" data-chip="15">15 questions</button>
-                        <button type="button" class="ai-chip" data-chip="30">30 questions</button>
+                        <button type="button" class="ai-chip" data-chip="30">30 Questions</button>
+                        <button type="button" class="ai-chip" data-chip="50">50 Questions</button>
                     </div>
                 </div>
 
