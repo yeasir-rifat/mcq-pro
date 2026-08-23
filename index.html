@@ -930,24 +930,6 @@
             color: var(--text-faint);
         }
 
-        .btn--add-question {
-            width: 100%;
-            justify-content: center;
-            padding: 12px;
-            margin-top: 12px;
-            border: 1.5px dashed var(--border-strong);
-            background: transparent;
-            color: var(--primary);
-            border-radius: var(--radius-md);
-            font-weight: 500;
-            transition: all var(--transition);
-        }
-        .btn--add-question:hover {
-            background: var(--primary-soft);
-            border-color: var(--primary);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-sm);
-        }
 
         .setting-hint a { color: var(--primary); }
 
@@ -2102,22 +2084,6 @@
                 overflow-x: auto;
                 overflow-y: hidden;
                 -webkit-overflow-scrolling: touch;
-                transition: transform 220ms ease, margin-top 220ms ease;
-            }
-
-            /* Collapse the header on scroll-down (mobile only) so the input
-               panel — and the sticky "Add MCQ" button — gets more room. The
-               header slides up and out; the tabs bar slides up to take its
-               place, then both slide back in together on scroll-up. */
-            .app-container.is-header-collapsed .app-header {
-                transform: translateY(calc(-100% - 4px));
-                margin-top: 0;
-                opacity: 0;
-                pointer-events: none;
-            }
-            .app-container.is-header-collapsed .mobile-tabs {
-                transform: translateY(calc(-1 * (var(--header-h-actual, 56px) + 4px)));
-                margin-top: calc(-1 * (var(--header-h-actual, 56px) + 4px));
             }
             .mobile-tabs__btn {
                 flex: 1;
@@ -2192,17 +2158,6 @@
                 width: 28px;
                 height: 28px;
                 font-size: 12px;
-            }
-            .btn--add-question {
-                position: sticky;
-                bottom: calc(-14px - env(safe-area-inset-bottom));
-                margin-top: 14px;
-                margin-bottom: calc(-14px - env(safe-area-inset-bottom));
-                padding: 12px;
-                padding-bottom: calc(12px + env(safe-area-inset-bottom));
-                background: var(--panel);
-                box-shadow: 0 -8px 12px -4px rgba(0, 0, 0, 0.15);
-                z-index: 5;
             }
             .question-card__head {
                 padding: 8px 10px;
@@ -2425,11 +2380,6 @@
                     </div>
 
                     <div id="questionsList" class="questions-list"></div>
-
-                    <button type="button" class="btn btn--add-question" id="btnAddQuestion">
-                        <i data-lucide="plus-circle"></i>
-                        <span id="btnAddQuestionLabel">Add MCQ 02</span>
-                    </button>
 
                 </div>
             </section>
@@ -2683,8 +2633,15 @@
             }
 
             function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+            // A question counts as "empty" when neither its prompt nor any of its
+            // options have real text. Used to keep an auto-generated trailing MCQ
+            // box out of the preview/PDF/sets until the user actually types into it.
+            function isQuestionEmpty(q) {
+                return stripHtml(q.question.html) === '' && q.options.every(o => stripHtml(o.html) === '');
+            }
             return { uid, toEnglishNumber, toBanglaNumber, formatQuestionNumber, optionLabel, debounce, sanitizeHtml,
-                stripHtml, shuffle, clamp, normalizeHex, clone };
+                stripHtml, shuffle, clamp, normalizeHex, clone, isQuestionEmpty };
         })();
 
 
@@ -2746,6 +2703,20 @@
             function setSetCodeField(key, value) { appState.setCode[key] = value; }
 
             function addQuestion() { appState.questions.push(freshQuestion()); return appState.questions.length - 1; }
+
+            // Keeps exactly one empty MCQ box waiting at the end of the list.
+            // Called after render and after any edit; only pushes a new one when
+            // the current last question has actually been typed into, so it never
+            // creates more than one spare box at a time. Returns true if a new
+            // (empty) question was appended.
+            function ensureTrailingEmpty() {
+                const qs = appState.questions;
+                if (qs.length === 0 || !Utils.isQuestionEmpty(qs[qs.length - 1])) {
+                    qs.push(freshQuestion());
+                    return true;
+                }
+                return false;
+            }
 
             function deleteQuestion(id) {
                 const idx = appState.questions.findIndex(q => q.id === id);
@@ -2822,7 +2793,7 @@
             return { get, replaceAll, resetToDefault, defaultState, setLanguage, setDocField, setSetting,
                 setSetCodeField, addQuestion, deleteQuestion, duplicateQuestion, moveQuestion, updateQuestionHtml,
                 updateOptionHtml, setQuestionLayout, freshQuestion, toggleOptionCorrect, updateQuestionExplanation,
-                computeAutoLayout };
+                computeAutoLayout, ensureTrailingEmpty };
         })();
 
 
@@ -2841,15 +2812,40 @@
             ];
 
             function renderQuestions() {
+                State.ensureTrailingEmpty();
                 const state = State.get();
                 const list = document.getElementById('questionsList');
                 const lang = state.language;
                 list.innerHTML = '';
                 state.questions.forEach((q, index) => { list.appendChild(buildQuestionCard(q, index, lang)); });
+                updateQuestionCountLabel();
+                if (window.lucide) lucide.createIcons();
+            }
+
+            // Counts only questions with real content — the spare trailing empty
+            // box (see State.ensureTrailingEmpty) isn't a question yet, so it's
+            // left out of the count, same as it's left out of the preview.
+            function updateQuestionCountLabel() {
+                const state = State.get();
+                const realCount = state.questions.filter(q => !Utils.isQuestionEmpty(q)).length;
                 document.getElementById('questionCount').textContent =
-                    `${state.questions.length} question${state.questions.length === 1 ? '' : 's'}`;
-                const nextNum = Utils.toEnglishNumber(state.questions.length + 1);
-                document.getElementById('btnAddQuestionLabel').textContent = `Add MCQ ${nextNum}`;
+                    `${realCount} question${realCount === 1 ? '' : 's'}`;
+            }
+
+            // When the user types into what is currently the last MCQ box, a new
+            // empty box is appended below it automatically (replacing the old
+            // "Add MCQ" button). The new box is inert in the preview/PDF/sets
+            // until it, in turn, gets typed into.
+            function appendTrailingCardIfNeeded(questionId) {
+                const state = State.get();
+                const idx = state.questions.findIndex(q => q.id === questionId);
+                if (idx === -1 || idx !== state.questions.length - 1) return;
+                const appended = State.ensureTrailingEmpty();
+                if (!appended) return;
+                const newQ = state.questions[state.questions.length - 1];
+                const list = document.getElementById('questionsList');
+                list.appendChild(buildQuestionCard(newQ, state.questions.length - 1, state.language));
+                updateQuestionCountLabel();
                 if (window.lucide) lucide.createIcons();
             }
 
@@ -3131,6 +3127,7 @@
 
                 // --- Events ---
                 bindEditableEvents(qEditor, (html) => { State.updateQuestionHtml(q.id, html);
+                    appendTrailingCardIfNeeded(q.id);
                     Preview.update(); });
 
                 layoutPicker.querySelectorAll('.layout-btn').forEach(btn => {
@@ -3295,6 +3292,7 @@
                 bindEditableEvents(editor, (html) => {
                     State.updateOptionHtml(questionId, opt.id, html);
                     syncLayoutPickerUI(questionId);
+                    appendTrailingCardIfNeeded(questionId);
                     Preview.update();
                 });
 
@@ -3619,7 +3617,10 @@
                 if (state.setCode.enabled && state.activeSetIndex >= 0 && state.generatedSets[state.activeSetIndex]) {
                     return state.generatedSets[state.activeSetIndex].questions;
                 }
-                return state.questions;
+                // Leave out the spare trailing empty box (see State.ensureTrailingEmpty)
+                // so it never shows up in the preview — only questions the user has
+                // actually typed into count.
+                return state.questions.filter(q => !Utils.isQuestionEmpty(q));
             }
 
             function currentSetCode() {
@@ -3792,7 +3793,8 @@
                 const count = Utils.clamp(parseInt(state.setCode.numberOfSets, 10) || 1, 1, 26);
                 const names = parseSetNames(state.setCode.codeNames, count);
                 const randType = state.setCode.randomization;
-                const sets = names.map(name => ({ setCode: name, questions: buildSetQuestions(state.questions,
+                const realQuestions = state.questions.filter(q => !Utils.isQuestionEmpty(q));
+                const sets = names.map(name => ({ setCode: name, questions: buildSetQuestions(realQuestions,
                         randType) }));
                 state.generatedSets = sets;
                 state.activeSetIndex = 0;
@@ -3852,6 +3854,7 @@
             }
 
             async function generateSinglePdf(questions, setCode, withAnswers) {
+                questions = questions.filter(q => !Utils.isQuestionEmpty(q));
                 const missing = checkDependencies();
                 if (missing.length) throw new Error(`${missing.join(' & ')} failed to load`);
                 const state = State.get();
@@ -5016,70 +5019,6 @@ Rules:
                 document.getElementById('panelInput').classList.add('is-active-mobile');
             }
 
-            // Collapse the header + tabs on scroll-down, reveal on scroll-up —
-            // mobile only, so the "Add MCQ" area gets more breathing room on
-            // short screens. Scoped to the input panel's own scroller since
-            // body/app-container don't scroll (see .app-container overflow:hidden).
-            function bindHeaderCollapse() {
-                const container = document.querySelector('.app-container');
-                const header = document.querySelector('.app-header');
-                const scroller = document.querySelector('#panelInput .panel__scroll');
-                if (!container || !header || !scroller) return;
-
-                const mq = window.matchMedia('(max-width: 720px)');
-                let lastY = 0;
-                let collapsed = false;
-
-                function measureHeader() {
-                    container.style.setProperty('--header-h-actual', `${header.offsetHeight}px`);
-                }
-
-                function setCollapsed(next) {
-                    if (next === collapsed) return;
-                    collapsed = next;
-                    container.classList.toggle('is-header-collapsed', collapsed);
-                }
-
-                function onScroll() {
-                    if (!mq.matches) return;
-                    const y = scroller.scrollTop;
-                    const delta = y - lastY;
-                    // Ignore tiny jitters (rubber-banding, sub-pixel scroll) and
-                    // never collapse until the user has actually scrolled past
-                    // the header's own height, so short lists never trigger it.
-                    if (y <= 4) {
-                        setCollapsed(false);
-                    } else if (Math.abs(delta) > 4) {
-                        setCollapsed(delta > 0);
-                    }
-                    lastY = y;
-                }
-
-                scroller.addEventListener('scroll', onScroll, { passive: true });
-                measureHeader();
-                if (window.ResizeObserver) {
-                    new ResizeObserver(Utils.debounce(measureHeader, 100)).observe(header);
-                }
-                mq.addEventListener ? mq.addEventListener('change', () => setCollapsed(false)) :
-                    mq.addListener(() => setCollapsed(false));
-            }
-
-            function bindAddQuestion() {
-                document.getElementById('btnAddQuestion').addEventListener('click', () => {
-                    State.addQuestion();
-                    Editor.renderQuestions();
-                    Preview.update(true);
-                    const cards = document.querySelectorAll('.question-card');
-                    const lastCard = cards[cards.length - 1];
-                    if (lastCard) { lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        const firstEditor = lastCard.querySelector('.editor-area'); if (firstEditor)
-                            setTimeout(() => firstEditor.focus(), 260); }
-                    const state = State.get();
-                    const num = Utils.toEnglishNumber(state.questions.length);
-                    toast(`Question ${num} added`, 'success');
-                });
-            }
-
             function bindHeaderActions() {
                 document.getElementById('btnSave').addEventListener('click', handleSave);
                 document.getElementById('btnReset').addEventListener('click', requestReset);
@@ -5138,8 +5077,6 @@ Rules:
                 bindDocumentFields();
                 bindZoomControls();
                 bindMobileTabs();
-                bindHeaderCollapse();
-                bindAddQuestion();
                 bindHeaderActions();
                 bindDownload();
                 bindLanguageSwitch();
