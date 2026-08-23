@@ -2079,7 +2079,7 @@
                 position: sticky;
                 top: 0;
                 z-index: 39;
-                margin: 0 4px;
+                margin: 0;
                 border-radius: var(--radius-sm) var(--radius-sm) 0 0;
                 overflow-x: auto;
                 overflow-y: hidden;
@@ -2115,7 +2115,7 @@
                 grid-template-rows: 1fr;
                 flex: 1;
                 min-height: 0;
-                padding: 0 4px 4px 4px;
+                padding: 0 0 4px 0;
                 gap: 4px;
             }
             .panel {
@@ -2129,7 +2129,7 @@
                 border-bottom: none;
             }
             .panel__scroll {
-                padding: 14px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
+                padding: 14px 14px calc(32px + env(safe-area-inset-bottom)) 14px;
             }
             .panel-topbar {
                 margin-bottom: 14px;
@@ -3896,10 +3896,36 @@
                 return pdf;
             }
 
-            function safeFileName(str) { return String(str || 'Document').replace(/[^a-z0-9\-_]+/gi, '_').slice(0, 60); }
+            // Cleans a string for use as a file name. Keeps Unicode text (Bangla,
+            // etc.) intact — only strips characters that are actually illegal in
+            // file names (\ / : * ? " < > |) plus control characters, and
+            // collapses whitespace. Falls back to 'Document' only if nothing
+            // usable is left (e.g. the source was empty or pure punctuation).
+            function safeFileName(str) {
+                const cleaned = String(str || '')
+                    .replace(/[\\/:*?"<>|]+/g, ' ')
+                    .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+                    .trim()
+                    .replace(/\s+/g, '_');
+                return (cleaned || 'Document').slice(0, 60);
+            }
 
             function anyCorrectAnswerMarked(questions) {
                 return questions.some(q => q.options.some(o => o.correct));
+            }
+
+            // Guarantees unique file names inside a zip even if two set codes
+            // clean down to the same text (e.g. duplicate codes, or codes that
+            // only differ by punctuation that gets stripped).
+            function makeUniqueNamer() {
+                const used = new Map();
+                return (base) => {
+                    if (!used.has(base)) { used.set(base, 1);
+                        return base; }
+                    const n = used.get(base) + 1;
+                    used.set(base, n);
+                    return `${base}_${n}`;
+                };
             }
 
             function downloadBlob(blob, filename) {
@@ -3932,36 +3958,39 @@
                     if (state.setCode.enabled && state.generatedSets.length > 1) {
                         if (!window.JSZip) throw new Error('JSZip failed to load');
                         const zip = new JSZip();
+                        const uniqueName = makeUniqueNamer();
                         for (const set of state.generatedSets) {
+                            const setLabel = uniqueName(safeFileName(set.setCode));
                             const pdf = await generateSinglePdf(set.questions, set.setCode, false);
-                            zip.file(`MCQ_Set_${safeFileName(set.setCode)}.pdf`, pdf.output('blob'));
+                            zip.file(`${baseName}_Set_${setLabel}.pdf`, pdf.output('blob'));
                             if (includeAnswerKey) {
                                 const answerPdf = await generateSinglePdf(set.questions, set.setCode, true);
-                                zip.file(`MCQ_Set_${safeFileName(set.setCode)}_Answer_Key.pdf`, answerPdf.output(
+                                zip.file(`${baseName}_Set_${setLabel}_Answer_Key.pdf`, answerPdf.output(
                                     'blob'));
                             }
                         }
                         const zipBlob = await zip.generateAsync({ type: 'blob' });
-                        downloadBlob(zipBlob, `${baseName}_Sets.zip`);
+                        downloadBlob(zipBlob, `${baseName}_All_Sets.zip`);
                         App.toast(includeAnswerKey ?
                             'ZIP with all sets and answer keys generated successfully' :
                             'ZIP with all sets generated successfully', 'success');
                     } else if (state.setCode.enabled && state.generatedSets.length === 1) {
                         const set = state.generatedSets[0];
+                        const setLabel = safeFileName(set.setCode);
                         const pdf = await generateSinglePdf(set.questions, set.setCode, false);
                         if (includeAnswerKey) {
                             if (!window.JSZip) throw new Error('JSZip failed to load');
                             const answerPdf = await generateSinglePdf(set.questions, set.setCode, true);
                             const zip = new JSZip();
-                            zip.file(`MCQ_Set_${safeFileName(set.setCode)}.pdf`, pdf.output('blob'));
-                            zip.file(`MCQ_Set_${safeFileName(set.setCode)}_Answer_Key.pdf`, answerPdf.output(
+                            zip.file(`${baseName}_Set_${setLabel}.pdf`, pdf.output('blob'));
+                            zip.file(`${baseName}_Set_${setLabel}_Answer_Key.pdf`, answerPdf.output(
                                 'blob'));
                             const zipBlob = await zip.generateAsync({ type: 'blob' });
-                            downloadBlob(zipBlob, `${baseName}_Set_${safeFileName(set.setCode)}.zip`);
+                            downloadBlob(zipBlob, `${baseName}_Set_${setLabel}.zip`);
                             App.toast('ZIP with question paper and answer key generated successfully',
                                 'success');
                         } else {
-                            pdf.save(`MCQ_Set_${safeFileName(set.setCode)}.pdf`);
+                            pdf.save(`${baseName}_Set_${setLabel}.pdf`);
                             App.toast('PDF generated successfully', 'success');
                         }
                     } else if (includeAnswerKey) {
