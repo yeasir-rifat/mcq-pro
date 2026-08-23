@@ -540,7 +540,7 @@
         .ai-modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(15, 18, 25, 0.55);
+            background: rgba(15, 18, 25, 0.6);
             z-index: 999;
             display: flex;
             align-items: flex-start;
@@ -548,7 +548,7 @@
             padding: 20px;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(3px);
         }
         .ai-modal-overlay[hidden] { display: none; }
         .ai-modal {
@@ -562,36 +562,38 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            border: 1px solid var(--border);
         }
         .ai-modal__head {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 16px 18px;
+            padding: 16px 20px;
             border-bottom: 1px solid var(--border);
             flex-shrink: 0;
+            background: linear-gradient(180deg, var(--primary-soft), transparent);
         }
         .ai-modal__head h2 {
-            font-size: 15px;
+            font-size: 15.5px;
             font-weight: 600;
             margin: 0;
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        .ai-modal__head h2 i { width: 18px; height: 18px; color: var(--primary); }
+        .ai-modal__head h2 i { width: 19px; height: 19px; color: var(--primary); }
         .ai-modal__body {
-            padding: 18px;
+            padding: 20px;
             overflow-y: auto;
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 16px;
         }
         .ai-capture-stage {
             position: relative;
             width: 100%;
-            min-height: 200px;
+            min-height: 190px;
             border-radius: var(--radius-md);
             border: 1.5px dashed var(--border-strong);
             background: var(--bg);
@@ -599,6 +601,10 @@
             align-items: center;
             justify-content: center;
             overflow: visible;
+            transition: border-color var(--transition), background var(--transition);
+        }
+        .ai-capture-stage:has(.ai-capture-placeholder:not([hidden])):hover {
+            border-color: var(--primary);
         }
         .ai-capture-stage video,
         .ai-capture-stage img {
@@ -609,47 +615,78 @@
             border-radius: var(--radius-sm);
             overflow: hidden;
         }
+        .ai-capture-stage video[hidden],
+        .ai-capture-stage img[hidden],
+        .ai-capture-doc-preview[hidden],
+        .ai-capture-placeholder[hidden],
+        .ai-capture-shutter-row[hidden],
+        .ai-capture-stage__remove[hidden] {
+            display: none !important;
+        }
         .ai-capture-placeholder {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             color: var(--text-faint);
-            padding: 28px 16px;
+            padding: 26px 16px;
             text-align: center;
             width: 100%;
         }
-        .ai-capture-placeholder i { width: 32px; height: 32px; flex-shrink: 0; }
+        .ai-capture-placeholder__icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: var(--primary-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ai-capture-placeholder__icon i { width: 24px; height: 24px; color: var(--primary); }
+        .ai-capture-placeholder__title {
+            font-size: 13.5px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
         .ai-capture-placeholder__actions {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             gap: 8px;
-            margin-top: 4px;
+            margin-top: 2px;
             width: 100%;
-            max-width: 260px;
+            max-width: 300px;
         }
         .ai-capture-placeholder__actions .btn {
-            width: 100%;
+            flex: 1;
             justify-content: center;
             white-space: nowrap;
-            padding: 10px 16px;
+            padding: 10px 14px;
         }
         .ai-capture-placeholder__hint {
             font-size: 11.5px;
             color: var(--text-faint);
-            opacity: 0.8;
+            opacity: 0.75;
         }
         .ai-capture-doc-preview {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
-            padding: 28px 16px;
+            gap: 10px;
+            padding: 30px 16px;
             color: var(--text);
             text-align: center;
             width: 100%;
         }
-        .ai-capture-doc-preview i { width: 40px; height: 40px; color: var(--primary); }
+        .ai-capture-doc-preview__icon {
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-md);
+            background: var(--primary-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ai-capture-doc-preview__icon i { width: 26px; height: 26px; color: var(--primary); }
         .ai-capture-doc-preview span {
             font-size: 13px;
             font-weight: 500;
@@ -669,7 +706,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: background var(--transition), transform var(--transition);
         }
+        .ai-capture-stage__remove:hover { background: rgba(220, 38, 38, 0.85); transform: scale(1.06); }
         .ai-capture-stage__remove i { width: 15px; height: 15px; }
         .ai-capture-shutter-row {
             display: flex;
@@ -686,42 +725,54 @@
             align-items: center;
             justify-content: center;
             color: var(--primary);
+            transition: transform var(--transition), background var(--transition);
         }
+        .ai-shutter-btn:hover { background: var(--primary-soft); transform: scale(1.04); }
         .ai-shutter-btn i { width: 22px; height: 22px; }
         .ai-modal__field label {
             display: block;
             font-size: 12.5px;
-            font-weight: 500;
+            font-weight: 600;
             color: var(--text-secondary);
-            margin-bottom: 6px;
+            margin-bottom: 7px;
         }
         .ai-prompt-textarea {
             width: 100%;
             resize: vertical;
-            min-height: 72px;
-            padding: 10px 12px;
+            min-height: 76px;
+            padding: 11px 13px;
             border-radius: var(--radius-sm);
             border: 1px solid var(--border);
             background: var(--bg);
             color: var(--text);
             font-family: inherit;
             font-size: 13px;
+            line-height: 1.5;
+            transition: border-color var(--transition), box-shadow var(--transition);
         }
-        .ai-prompt-textarea:focus { border-color: var(--primary); }
+        .ai-prompt-textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-soft);
+            outline: none;
+        }
         .ai-quick-chips {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 7px;
+            margin-top: 9px;
         }
         .ai-chip {
-            padding: 5px 12px;
+            padding: 6px 13px;
             border-radius: 999px;
             border: 1px solid var(--border);
             background: var(--bg);
             color: var(--text-secondary);
             font-size: 12px;
+            font-weight: 500;
+            transition: all var(--transition);
         }
-        .ai-chip:hover { border-color: var(--primary); color: var(--primary); }
+        .ai-chip:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+        .ai-chip.is-active { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); font-weight: 600; }
         .ai-modal__row {
             display: flex;
             gap: 10px;
@@ -736,6 +787,7 @@
             min-height: 18px;
         }
         .ai-modal__status.is-error { color: var(--danger); }
+        .ai-modal__status.is-success { color: var(--success); }
         .ai-spinner {
             width: 14px;
             height: 14px;
@@ -750,9 +802,10 @@
         .ai-modal__foot {
             display: flex;
             gap: 10px;
-            padding: 14px 18px;
+            padding: 16px 20px;
             border-top: 1px solid var(--border);
             flex-shrink: 0;
+            background: var(--bg);
         }
         .ai-key-hint {
             font-size: 12px;
@@ -760,13 +813,14 @@
             background: var(--primary-soft);
             border: 1px solid var(--primary-light);
             border-radius: var(--radius-sm);
-            padding: 10px 12px;
+            padding: 11px 13px;
             display: flex;
-            gap: 8px;
+            gap: 9px;
             align-items: flex-start;
+            line-height: 1.5;
         }
         .ai-key-hint i { width: 15px; height: 15px; color: var(--primary); flex-shrink: 0; margin-top: 1px; }
-        .ai-key-hint a { color: var(--primary); font-weight: 500; }
+        .ai-key-hint a { color: var(--primary); font-weight: 600; }
 
         /* ===== QUESTIONS HEAD ===== */
         .questions-head {
@@ -1814,10 +1868,10 @@
             font-weight: 700;
         }
         .doc-explanation {
-            display: flex;
-            align-items: flex-start;
             margin: 4px 0 0 0;
             padding: 4px 0 0;
+            padding-left: 1.5em;
+            text-indent: -1.5em;
             font-size: 0.88em;
             font-style: italic;
             color: #374151;
@@ -1825,19 +1879,15 @@
             word-break: break-word;
         }
         .doc-explanation__label {
-            flex-shrink: 0;
-            width: 1.5em;
+            display: inline-block;
             min-width: 1.5em;
-            font-weight: 700;
-        }
-        .doc-explanation__text {
-            flex: 1;
-            min-width: 0;
-        }
-        .doc-explanation__label {
+            text-indent: 0;
             font-style: normal;
             font-weight: 700;
             color: #16A34A;
+        }
+        .doc-explanation__text {
+            text-indent: 0;
         }
         .doc--empty-state {
             display: flex;
@@ -4400,7 +4450,7 @@ Rules:
                 }
             }
 
-            function applyChip(chip) {
+            function applyChip(chip, btn) {
                 const textarea = el('aiPromptInput');
                 const map = {
                     en: ' Write the questions in English. ',
@@ -4411,8 +4461,31 @@ Rules:
                 };
                 const addition = map[chip];
                 if (!addition) return;
-                if (!textarea.value.includes(addition.trim())) {
+                const trimmedAddition = addition.trim();
+                const isActive = textarea.value.includes(trimmedAddition);
+                if (isActive) {
+                    // Toggle off: remove this chip's text from the prompt.
+                    textarea.value = textarea.value.replace(addition, ' ').replace(trimmedAddition, '')
+                        .replace(/\s{2,}/g, ' ').trim();
+                    if (btn) btn.classList.remove('is-active');
+                } else {
+                    // Language and question-count chips are mutually exclusive -
+                    // remove any sibling in the same group before adding this one.
+                    const group = (chip === 'en' || chip === 'bn') ? ['en', 'bn'] :
+                        (chip == 30 || chip == 50) ? [30, 50] : null;
+                    if (group) {
+                        group.forEach(sibling => {
+                            const siblingText = (map[sibling] || '').trim();
+                            if (siblingText && textarea.value.includes(siblingText)) {
+                                textarea.value = textarea.value.replace(map[sibling], ' ').replace(siblingText, '')
+                                    .replace(/\s{2,}/g, ' ').trim();
+                            }
+                            const siblingBtn = document.querySelector(`.ai-chip[data-chip="${sibling}"]`);
+                            if (siblingBtn) siblingBtn.classList.remove('is-active');
+                        });
+                    }
                     textarea.value = (textarea.value.trim() + addition).trim();
+                    if (btn) btn.classList.add('is-active');
                 }
                 textarea.focus();
             }
@@ -4433,7 +4506,7 @@ Rules:
                     e.target.value = '';
                 });
                 document.querySelectorAll('.ai-chip').forEach(chip => {
-                    chip.addEventListener('click', () => applyChip(chip.dataset.chip));
+                    chip.addEventListener('click', () => applyChip(chip.dataset.chip, chip));
                 });
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape' && !el('aiModalOverlay').hidden) closeModal();
@@ -4699,18 +4772,18 @@ Rules:
 
                 <div class="ai-capture-stage" id="aiCaptureStage">
                     <div class="ai-capture-placeholder" id="aiCapturePlaceholder">
-                        <i data-lucide="image-plus"></i>
-                        <span>No file selected</span>
+                        <div class="ai-capture-placeholder__icon"><i data-lucide="image-plus"></i></div>
+                        <span class="ai-capture-placeholder__title">No file selected</span>
                         <div class="ai-capture-placeholder__actions">
                             <button type="button" class="btn btn--secondary" id="btnAiStartCamera"><i data-lucide="camera"></i>Capture</button>
                             <button type="button" class="btn btn--secondary" id="btnAiPickFile"><i data-lucide="upload"></i>Upload</button>
                         </div>
-                        <span class="ai-capture-placeholder__hint">JPG/PNG or PDF</span>
+                        <span class="ai-capture-placeholder__hint">JPG, PNG, or PDF</span>
                     </div>
                     <video id="aiCameraVideo" autoplay playsinline hidden></video>
                     <img id="aiCapturedImage" alt="Captured page" hidden>
                     <div class="ai-capture-doc-preview" id="aiCapturedDoc" hidden>
-                        <i data-lucide="file-text"></i>
+                        <div class="ai-capture-doc-preview__icon"><i data-lucide="file-text"></i></div>
                         <span id="aiCapturedDocName">Document</span>
                     </div>
                     <button type="button" class="ai-capture-stage__remove" id="btnAiRemoveImage" hidden aria-label="Remove file"><i data-lucide="trash-2"></i></button>
@@ -4722,7 +4795,7 @@ Rules:
 
                 <div class="ai-modal__field">
                     <label for="aiPromptInput">Instruction for MCQ Generation</label>
-                    <textarea id="aiPromptInput" class="ai-prompt-textarea" placeholder="Generate 30 MCQs from this page, medium difficulty, include the correct answer and explannation."></textarea>
+                    <textarea id="aiPromptInput" class="ai-prompt-textarea" placeholder="Generate 30 MCQs from this page, medium difficulty, include the correct answer and explanation."></textarea>
                     <div class="ai-quick-chips">
                         <button type="button" class="ai-chip" data-chip="en">English Questions</button>
                         <button type="button" class="ai-chip" data-chip="bn">বাংলা প্রশ্ন তৈরি করুন</button>
