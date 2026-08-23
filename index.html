@@ -616,11 +616,8 @@
             overflow: hidden;
         }
         .ai-capture-stage video[hidden],
-        .ai-capture-stage img[hidden],
-        .ai-capture-doc-preview[hidden],
         .ai-capture-placeholder[hidden],
-        .ai-capture-shutter-row[hidden],
-        .ai-capture-stage__remove[hidden] {
+        .ai-capture-shutter-row[hidden] {
             display: none !important;
         }
         .ai-capture-placeholder {
@@ -667,49 +664,96 @@
             color: var(--text-faint);
             opacity: 0.75;
         }
-        .ai-capture-doc-preview {
+        .ai-file-list[hidden] { display: none !important; }
+        .ai-file-list {
             display: flex;
             flex-direction: column;
+            gap: 8px;
+        }
+        .ai-file-list__items {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .ai-file-chip {
+            display: flex;
             align-items: center;
             gap: 10px;
-            padding: 30px 16px;
-            color: var(--text);
-            text-align: center;
-            width: 100%;
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--bg);
         }
-        .ai-capture-doc-preview__icon {
-            width: 56px;
-            height: 56px;
-            border-radius: var(--radius-md);
+        .ai-file-chip__icon {
+            flex-shrink: 0;
+            width: 34px;
+            height: 34px;
+            border-radius: var(--radius-sm);
             background: var(--primary-soft);
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
         }
-        .ai-capture-doc-preview__icon i { width: 26px; height: 26px; color: var(--primary); }
-        .ai-capture-doc-preview span {
-            font-size: 13px;
+        .ai-file-chip__icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .ai-file-chip__icon i { width: 17px; height: 17px; color: var(--primary); }
+        .ai-file-chip__info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .ai-file-chip__name {
+            font-size: 12.5px;
             font-weight: 500;
-            word-break: break-word;
-            max-width: 100%;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .ai-capture-stage__remove {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 30px;
-            height: 30px;
+        .ai-file-chip__meta {
+            font-size: 11px;
+            color: var(--text-faint);
+        }
+        .ai-file-chip__meta.is-error { color: var(--danger); }
+        .ai-file-chip__remove {
+            flex-shrink: 0;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             border: none;
-            background: rgba(17, 24, 39, 0.65);
-            color: #fff;
+            background: transparent;
+            color: var(--text-faint);
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background var(--transition), transform var(--transition);
+            transition: background var(--transition), color var(--transition);
         }
-        .ai-capture-stage__remove:hover { background: rgba(220, 38, 38, 0.85); transform: scale(1.06); }
-        .ai-capture-stage__remove i { width: 15px; height: 15px; }
+        .ai-file-chip__remove:hover { background: var(--danger-soft, rgba(248,113,113,0.15)); color: var(--danger); }
+        .ai-file-chip__remove i { width: 14px; height: 14px; }
+        .ai-file-list__add {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 9px;
+            border-radius: var(--radius-sm);
+            border: 1.5px dashed var(--border-strong);
+            background: transparent;
+            color: var(--primary);
+            font-size: 12.5px;
+            font-weight: 500;
+            transition: all var(--transition);
+        }
+        .ai-file-list__add:hover { border-color: var(--primary); background: var(--primary-soft); }
+        .ai-file-list__add i { width: 15px; height: 15px; }
         .ai-capture-shutter-row {
             display: flex;
             justify-content: center;
@@ -2270,7 +2314,7 @@
                             </button>
                         </div>
                     </div>
-                    <input type="file" id="aiFileInput" accept="image/*,application/pdf" class="sr-only" tabindex="-1" aria-hidden="true">
+                    <input type="file" id="aiFileInput" accept="image/*,application/pdf,.pdf,.doc,.docx,.ppt,.pptx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple class="sr-only" tabindex="-1" aria-hidden="true">
 
                     <!-- ===== HEADER CARD ===== -->
                     <div class="header-card">
@@ -4121,20 +4165,22 @@
            ================================================================ */
         const AiGenerator = (() => {
             let mediaStream = null;
-            let capturedFile = null; // { data, mimeType, name, kind: 'image' | 'pdf' }
+            const MAX_FILES = 10;
+            // Each entry: { id, name, kind: 'image'|'pdf'|'text', mimeType, data (base64, for image/pdf),
+            //               text (extracted plain text, for docx/pptx), thumb (data URL, for images) }
+            let capturedFiles = [];
 
             function el(id) { return document.getElementById(id); }
 
+            function genId() { return `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`; }
+
             function resetStage() {
                 stopCamera();
-                capturedFile = null;
+                capturedFiles = [];
                 el('aiCapturePlaceholder').hidden = false;
                 el('aiCameraVideo').hidden = true;
-                el('aiCapturedImage').hidden = true;
-                el('aiCapturedImage').removeAttribute('src');
-                el('aiCapturedDoc').hidden = true;
-                el('btnAiRemoveImage').hidden = true;
                 el('aiShutterRow').hidden = true;
+                renderFileList();
                 setStatus('');
             }
 
@@ -4162,6 +4208,10 @@
                     setStatus('Camera is not supported in this browser.', 'error');
                     return;
                 }
+                if (capturedFiles.length >= MAX_FILES) {
+                    setStatus(`You can attach up to ${MAX_FILES} files.`, 'error');
+                    return;
+                }
                 try {
                     mediaStream = await navigator.mediaDevices.getUserMedia({
                         video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
@@ -4171,9 +4221,6 @@
                     video.srcObject = mediaStream;
                     el('aiCapturePlaceholder').hidden = true;
                     video.hidden = false;
-                    el('aiCapturedImage').hidden = true;
-                    el('aiCapturedDoc').hidden = true;
-                    el('btnAiRemoveImage').hidden = false;
                     el('aiShutterRow').hidden = false;
                 } catch (e) {
                     console.error(e);
@@ -4190,53 +4237,168 @@
                 canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
                 stopCamera();
-                showCapturedImage(dataUrl, 'image/jpeg');
-            }
-
-            function showCapturedImage(dataUrl, mimeType) {
-                const base64 = dataUrl.split(',')[1];
-                capturedFile = { data: base64, mimeType, name: 'captured-photo.jpg', kind: 'image' };
-                const img = el('aiCapturedImage');
-                img.src = dataUrl;
-                el('aiCapturePlaceholder').hidden = true;
+                addImageFile(dataUrl, 'image/jpeg', `captured-photo-${capturedFiles.length + 1}.jpg`);
                 el('aiCameraVideo').hidden = true;
-                el('aiCapturedDoc').hidden = true;
-                img.hidden = false;
-                el('btnAiRemoveImage').hidden = false;
                 el('aiShutterRow').hidden = true;
+                el('aiCapturePlaceholder').hidden = capturedFiles.length > 0;
             }
 
-            function showCapturedDoc(dataUrl, mimeType, name) {
+            function addImageFile(dataUrl, mimeType, name) {
                 const base64 = dataUrl.split(',')[1];
-                capturedFile = { data: base64, mimeType, name, kind: 'pdf' };
-                el('aiCapturePlaceholder').hidden = true;
-                el('aiCameraVideo').hidden = true;
-                el('aiCapturedImage').hidden = true;
-                el('aiCapturedDocName').textContent = name;
-                el('aiCapturedDoc').hidden = false;
-                el('btnAiRemoveImage').hidden = false;
-                el('aiShutterRow').hidden = true;
+                capturedFiles.push({ id: genId(), name, kind: 'image', mimeType, data: base64, thumb: dataUrl });
+                renderFileList();
             }
 
-            function handleFileSelected(file) {
-                if (!file) return;
-                const isImage = file.type.startsWith('image/');
-                const isPdf = file.type === 'application/pdf';
-                if (!isImage && !isPdf) {
-                    if (/\.(ppt|pptx|doc|docx|xls|xlsx)$/i.test(file.name)) {
-                        setStatus('PowerPoint and Word files aren\u2019t supported yet — please upload a photo or a PDF of the page instead.', 'error');
-                    } else {
-                        setStatus('Please choose an image (JPG/PNG) or a PDF file.', 'error');
-                    }
+            function addPdfFile(dataUrl, name) {
+                const base64 = dataUrl.split(',')[1];
+                capturedFiles.push({ id: genId(), name, kind: 'pdf', mimeType: 'application/pdf', data: base64 });
+                renderFileList();
+            }
+
+            function addTextFile(text, name, kind) {
+                capturedFiles.push({ id: genId(), name, kind: 'text', sourceKind: kind, text });
+                renderFileList();
+            }
+
+            // docx/pptx are ZIP archives of XML - JSZip (already loaded for exports)
+            // lets us pull the raw text out client-side without any extra library.
+            async function extractOfficeText(file) {
+                if (!window.JSZip) throw new Error('JSZip failed to load');
+                const zip = await JSZip.loadAsync(file);
+                const isPptx = /\.pptx$/i.test(file.name);
+                const xmlPaths = Object.keys(zip.files).filter(p =>
+                    isPptx ? /^ppt\/slides\/slide\d+\.xml$/i.test(p) : /^word\/document\.xml$/i.test(p)
+                );
+                if (isPptx) {
+                    xmlPaths.sort((a, b) => {
+                        const na = parseInt(a.match(/slide(\d+)\.xml/i)[1], 10);
+                        const nb = parseInt(b.match(/slide(\d+)\.xml/i)[1], 10);
+                        return na - nb;
+                    });
+                }
+                if (xmlPaths.length === 0) throw new Error('EMPTY_DOC');
+                const chunks = [];
+                for (const path of xmlPaths) {
+                    const xml = await zip.files[path].async('string');
+                    // Pull text out of <a:t> (pptx) / <w:t> (docx) runs, and turn
+                    // paragraph/slide boundaries into line breaks so structure survives.
+                    const text = xml
+                        .replace(/<\/w:p>/gi, '\n')
+                        .replace(/<\/a:p>/gi, '\n')
+                        .replace(/<[^>]+>/g, '')
+                        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+                        .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+                        .replace(/[ \t]{2,}/g, ' ')
+                        .replace(/\n{3,}/g, '\n\n')
+                        .trim();
+                    if (text) chunks.push(text);
+                }
+                const combined = chunks.join('\n\n').trim();
+                if (!combined) throw new Error('EMPTY_DOC');
+                return combined;
+            }
+
+            function handleFileSelected(fileList) {
+                const files = Array.from(fileList || []);
+                if (files.length === 0) return;
+                const room = MAX_FILES - capturedFiles.length;
+                if (room <= 0) {
+                    setStatus(`You can attach up to ${MAX_FILES} files. Remove one first.`, 'error');
                     return;
                 }
+                const toProcess = files.slice(0, room);
+                if (files.length > toProcess.length) {
+                    setStatus(`Only ${room} more file${room === 1 ? '' : 's'} can be added (max ${MAX_FILES}).`, 'error');
+                }
+                el('aiCapturePlaceholder').hidden = true;
+                toProcess.forEach(file => processFile(file));
+            }
+
+            function processFile(file) {
+                const isImage = file.type.startsWith('image/');
+                const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+                const isDocx = /\.docx$/i.test(file.name) ||
+                    file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                const isPptx = /\.pptx$/i.test(file.name) ||
+                    file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+                const isLegacyOffice = /\.(doc|ppt|xls|xlsx)$/i.test(file.name);
+
+                if (isLegacyOffice) {
+                    setStatus('Older .doc/.ppt/.xls formats aren\u2019t supported — please save as .docx/.pptx/PDF and try again.', 'error');
+                    return;
+                }
+                if (!isImage && !isPdf && !isDocx && !isPptx) {
+                    setStatus('Please choose an image, PDF, DOCX, or PPTX file.', 'error');
+                    return;
+                }
+
+                if (isDocx || isPptx) {
+                    setStatus(`Reading ${file.name}…`, 'loading');
+                    extractOfficeText(file).then(text => {
+                        addTextFile(text, file.name, isPptx ? 'pptx' : 'docx');
+                        setStatus('');
+                    }).catch(err => {
+                        console.error(err);
+                        setStatus(`Couldn\u2019t read ${file.name} — the file may be empty, corrupted, or password-protected.`, 'error');
+                    });
+                    return;
+                }
+
                 const reader = new FileReader();
                 reader.onload = () => {
-                    if (isPdf) { showCapturedDoc(reader.result, 'application/pdf', file.name); }
-                    else { showCapturedImage(reader.result, file.type || 'image/jpeg'); }
+                    if (isPdf) { addPdfFile(reader.result, file.name); }
+                    else { addImageFile(reader.result, file.type || 'image/jpeg', file.name); }
                 };
-                reader.onerror = () => setStatus('Could not read that file.', 'error');
+                reader.onerror = () => setStatus(`Could not read ${file.name}.`, 'error');
                 reader.readAsDataURL(file);
+            }
+
+            function removeFile(id) {
+                capturedFiles = capturedFiles.filter(f => f.id !== id);
+                renderFileList();
+                if (capturedFiles.length === 0) el('aiCapturePlaceholder').hidden = false;
+            }
+
+            function fileIcon(f) {
+                if (f.kind === 'image') return null; // uses thumbnail instead
+                if (f.kind === 'pdf') return 'file-text';
+                if (f.sourceKind === 'pptx') return 'presentation';
+                return 'file-type-2';
+            }
+
+            function renderFileList() {
+                const wrap = el('aiFileList');
+                const items = el('aiFileListItems');
+                const title = el('aiCaptureTitle');
+                if (capturedFiles.length === 0) {
+                    wrap.hidden = true;
+                    items.innerHTML = '';
+                    if (title) title.textContent = 'No file selected';
+                    return;
+                }
+                wrap.hidden = false;
+                if (title) title.textContent = `${capturedFiles.length} file${capturedFiles.length === 1 ? '' : 's'} selected`;
+                items.innerHTML = capturedFiles.map(f => {
+                    const iconName = fileIcon(f);
+                    const iconHtml = f.kind === 'image' ?
+                        `<img src="${f.thumb}" alt="">` :
+                        `<i data-lucide="${iconName}"></i>`;
+                    const metaText = f.kind === 'text' ?
+                        (f.sourceKind === 'pptx' ? 'PowerPoint · text extracted' : 'Word · text extracted') :
+                        (f.kind === 'pdf' ? 'PDF' : 'Image');
+                    return `<div class="ai-file-chip" data-id="${f.id}">
+                        <div class="ai-file-chip__icon">${iconHtml}</div>
+                        <div class="ai-file-chip__info">
+                            <span class="ai-file-chip__name">${escapeHtml(f.name)}</span>
+                            <span class="ai-file-chip__meta">${metaText}</span>
+                        </div>
+                        <button type="button" class="ai-file-chip__remove" data-remove="${f.id}" aria-label="Remove ${escapeHtml(f.name)}"><i data-lucide="x"></i></button>
+                    </div>`;
+                }).join('');
+                items.querySelectorAll('[data-remove]').forEach(btn => {
+                    btn.addEventListener('click', () => removeFile(btn.dataset.remove));
+                });
+                if (window.lucide) lucide.createIcons();
             }
 
             function openModal({ startCameraImmediately } = {}) {
@@ -4254,12 +4416,24 @@
             }
 
             function buildPrompt(userPrompt) {
-                const sourceDesc = capturedFile && capturedFile.kind === 'pdf'
-                    ? 'attached PDF document'
-                    : 'attached image of a page';
-                const instruction = `You are an expert exam-question writer. Look at the ${sourceDesc} (it may contain English text, Bangla (Bengali) text, or mathematical content/equations). Based on the content and the user's request below, generate multiple-choice questions (MCQs).
+                const kinds = new Set(capturedFiles.map(f => f.kind === 'text' ? f.sourceKind : f.kind));
+                const parts = [];
+                if (kinds.has('image')) parts.push('image(s) of a page');
+                if (kinds.has('pdf')) parts.push('PDF document(s)');
+                if (kinds.has('docx')) parts.push('Word document text');
+                if (kinds.has('pptx')) parts.push('PowerPoint slide text');
+                const sourceDesc = capturedFiles.length > 1 ?
+                    `attached ${parts.join(', ')} (${capturedFiles.length} files total)` :
+                    `attached ${parts[0] || 'source material'}`;
+                const textFiles = capturedFiles.filter(f => f.kind === 'text');
+                const textBlock = textFiles.length ? `
 
-User's request: "${userPrompt}"
+Extracted document text follows (use this together with any attached images/PDFs above):
+` + textFiles.map(f => `--- ${f.name} ---
+${f.text}`).join('\n\n') : '';
+                const instruction = `You are an expert exam-question writer. Look at the ${sourceDesc} (it may contain English text, Bangla (Bengali) text, or mathematical content/equations). Based on the content across ALL attached sources and the user's request below, generate multiple-choice questions (MCQs).
+
+User's request: "${userPrompt}"${textBlock}
 
 Respond with ONLY valid JSON (no markdown fences, no commentary) matching exactly this schema:
 {
@@ -4276,7 +4450,7 @@ Rules:
 - Write the question and options in the same language as the source content (English or Bangla), unless the user's request explicitly asks for a different language.
 - Always produce exactly 4 options per question unless the user's request specifies a different number of options.
 - correctIndex is a zero-based index (0-3) pointing to the correct option.
-- Base every question strictly on content visible in the source.
+- Base every question strictly on content visible in the source(s). If multiple files were attached, draw questions from across all of them.
 - MATH FORMATTING - this is important: never use plain-text notation like x^2, sqrt(x), x_2, or ->. Instead use the actual Unicode characters directly in the text:
   - Superscripts/powers: ² ³ ⁴ (e.g. write "x²" not "x^2")
   - Subscripts: ₂ ₃ (e.g. write "H₂O" not "H_2O")
@@ -4296,11 +4470,14 @@ Rules:
             async function requestGeneration(model, userPrompt) {
                 const settings = Settings.getAiSettings();
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(settings.apiKey)}`;
+                const inlineParts = capturedFiles
+                    .filter(f => f.kind === 'image' || f.kind === 'pdf')
+                    .map(f => ({ inline_data: { mime_type: f.mimeType, data: f.data } }));
                 const body = {
                     contents: [{
                         parts: [
                             { text: buildPrompt(userPrompt) },
-                            { inline_data: { mime_type: capturedFile.mimeType, data: capturedFile.data } }
+                            ...inlineParts
                         ]
                     }],
                     generationConfig: { temperature: 0.4, responseMimeType: 'application/json' }
@@ -4333,7 +4510,7 @@ Rules:
             async function callGemini(userPrompt) {
                 const settings = Settings.getAiSettings();
                 if (!settings.apiKey) throw new Error('MISSING_KEY');
-                if (!capturedFile) throw new Error('MISSING_IMAGE');
+                if (!capturedFiles.length) throw new Error('MISSING_IMAGE');
 
                 // Try the user's chosen model first, then fall back through known-good
                 // models if it's been retired by Google (common with fast-moving Gemini releases).
@@ -4421,14 +4598,16 @@ Rules:
                     setStatus('Add your Gemini API key in Settings → AI first.', 'error');
                     return;
                 }
-                if (!capturedFile) {
+                if (!capturedFiles.length) {
                     setStatus('Capture a photo or upload a file first.', 'error');
                     return;
                 }
                 const userPrompt = el('aiPromptInput').value.trim() || 'Generate MCQ questions from this content.';
                 const btn = el('btnAiGenerate');
                 btn.disabled = true;
-                setStatus('Analyzing the file and generating questions…', 'loading');
+                setStatus(capturedFiles.length > 1 ?
+                    `Analyzing ${capturedFiles.length} files and generating questions…` :
+                    'Analyzing the file and generating questions…', 'loading');
                 try {
                     const questions = await callGemini(userPrompt);
                     const count = insertQuestions(questions);
@@ -4494,15 +4673,14 @@ Rules:
                 el('btnAiMode').addEventListener('click', () => openModal({}));
                 el('btnAiStartCamera').addEventListener('click', startCamera);
                 el('btnAiPickFile').addEventListener('click', () => el('aiFileInput').click());
+                el('btnAiAddMore').addEventListener('click', () => el('aiFileInput').click());
                 el('btnAiShutter').addEventListener('click', capturePhoto);
-                el('btnAiRemoveImage').addEventListener('click', resetStage);
                 el('btnCloseAiModal').addEventListener('click', closeModal);
                 el('btnAiCancel').addEventListener('click', closeModal);
                 el('btnAiGenerate').addEventListener('click', handleGenerateClick);
                 el('aiModalOverlay').addEventListener('click', (e) => { if (e.target.id === 'aiModalOverlay') closeModal(); });
                 el('aiFileInput').addEventListener('change', (e) => {
-                    const file = e.target.files && e.target.files[0];
-                    if (file) handleFileSelected(file);
+                    handleFileSelected(e.target.files);
                     e.target.value = '';
                 });
                 document.querySelectorAll('.ai-chip').forEach(chip => {
@@ -4773,24 +4951,23 @@ Rules:
                 <div class="ai-capture-stage" id="aiCaptureStage">
                     <div class="ai-capture-placeholder" id="aiCapturePlaceholder">
                         <div class="ai-capture-placeholder__icon"><i data-lucide="image-plus"></i></div>
-                        <span class="ai-capture-placeholder__title">No file selected</span>
+                        <span class="ai-capture-placeholder__title" id="aiCaptureTitle">No file selected</span>
                         <div class="ai-capture-placeholder__actions">
                             <button type="button" class="btn btn--secondary" id="btnAiStartCamera"><i data-lucide="camera"></i>Capture</button>
                             <button type="button" class="btn btn--secondary" id="btnAiPickFile"><i data-lucide="upload"></i>Upload</button>
                         </div>
-                        <span class="ai-capture-placeholder__hint">JPG, PNG, or PDF</span>
+                        <span class="ai-capture-placeholder__hint">JPG, PNG, PDF, DOCX, or PPTX — multiple allowed</span>
                     </div>
                     <video id="aiCameraVideo" autoplay playsinline hidden></video>
-                    <img id="aiCapturedImage" alt="Captured page" hidden>
-                    <div class="ai-capture-doc-preview" id="aiCapturedDoc" hidden>
-                        <div class="ai-capture-doc-preview__icon"><i data-lucide="file-text"></i></div>
-                        <span id="aiCapturedDocName">Document</span>
-                    </div>
-                    <button type="button" class="ai-capture-stage__remove" id="btnAiRemoveImage" hidden aria-label="Remove file"><i data-lucide="trash-2"></i></button>
                 </div>
 
                 <div class="ai-capture-shutter-row" id="aiShutterRow" hidden>
                     <button type="button" class="ai-shutter-btn" id="btnAiShutter" aria-label="Capture photo"><i data-lucide="circle"></i></button>
+                </div>
+
+                <div class="ai-file-list" id="aiFileList" hidden>
+                    <div class="ai-file-list__items" id="aiFileListItems"></div>
+                    <button type="button" class="ai-file-list__add" id="btnAiAddMore"><i data-lucide="plus"></i>Add more</button>
                 </div>
 
                 <div class="ai-modal__field">
