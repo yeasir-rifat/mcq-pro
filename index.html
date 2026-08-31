@@ -3895,7 +3895,7 @@
             // previous 2.83x (~270 DPI), which matters most on long
             // documents (100s of questions) where every page's canvas adds
             // up.
-            const PDF_RENDER_DPI_SCALE = 2.0;
+            const PDF_RENDER_DPI_SCALE = 2.5;
 
             // html2canvas / jsPDF / JSZip are large (combined, noticeably
             // heavier than the rest of the app's JS) and only needed once
@@ -3964,11 +3964,21 @@
                 return node;
             }
 
-            async function rasterizePage(pageHtml, widthPx, heightPxMin, pageColor) {
+            // Attaches an offscreen node and sizes it, but does not wait or
+            // rasterize yet. Split out from rasterizePage so a whole batch
+            // of nodes can be attached first, then all wait on a *single*
+            // shared double-rAF instead of one wait per page.
+            function attachOffscreenPage(pageHtml, widthPx, pageColor) {
                 const node = buildOffscreenPage(pageHtml, pageColor);
                 node.style.width = `${widthPx}px`;
+                return node;
+            }
+
+            // Waits one double-rAF (layout settles on the *next* paint
+            // after styles are applied, so a single rAF isn't always
+            // enough) then rasterizes an already-attached node.
+            async function rasterizeAttachedPage(node, widthPx, heightPxMin, pageColor) {
                 node.style.minHeight = `${heightPxMin}px`;
-                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
                 const actualHeight = Math.max(node.scrollHeight, heightPxMin);
                 const canvas = await html2canvas(node, {
                     scale: PDF_RENDER_DPI_SCALE,
@@ -3979,6 +3989,22 @@
                     windowWidth: widthPx
                 });
                 document.body.removeChild(node);
+                return canvas;
+            }
+
+            // Rasterizes a batch of pages sharing one double-rAF wait
+            // instead of paying it per page. Safe because each node is an
+            // independent, already-offscreen DOM subtree — attaching all
+            // of them first just means the browser lays them all out on
+            // the same frame.
+            async function rasterizePageBatch(pageHtmlList, widthPx, heightPxMin, pageColor) {
+                const nodes = pageHtmlList.map(html => attachOffscreenPage(html, widthPx, pageColor));
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                return Promise.all(nodes.map(node => rasterizeAttachedPage(node, widthPx, heightPxMin, pageColor)));
+            }
+
+            async function rasterizePage(pageHtml, widthPx, heightPxMin, pageColor) {
+                const [canvas] = await rasterizePageBatch([pageHtml], widthPx, heightPxMin, pageColor);
                 return canvas;
             }
 
@@ -4017,32 +4043,50 @@
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: unitFormat, compress: true });
                 const totalPages = pageHtmlList.length;
-                for (let i = 0; i < pageHtmlList.length; i++) {
-                    let pageHtml = pageHtmlList[i];
-                    if (totalPages > 1) {
-                        const pageNum = i + 1;
-                        const pageLabelText = lang === 'bn' ?
-                            `পৃষ্ঠা ${Utils.toBanglaNumber(pageNum)}/${Utils.toBanglaNumber(totalPages)}` :
-                            `Page ${Utils.toEnglishNumber(pageNum)}/${Utils.toEnglishNumber(totalPages)}`;
-                        pageHtml += `<div class="doc__pagenum">${DocRenderer.escapeHtml(pageLabelText)}</div>`;
+
+                // Build the final HTML (with page-number label) for every
+                // page up front, so the batching loop below only has to
+                // deal with rendering.
+                const finalPageHtmlList = pageHtmlList.map((pageHtml, i) => {
+                    if (totalPages <= 1) return pageHtml;
+                    const pageNum = i + 1;
+                    const pageLabelText = lang === 'bn' ?
+                        `পৃষ্ঠা ${Utils.toBanglaNumber(pageNum)}/${Utils.toBanglaNumber(totalPages)}` :
+                        `Page ${Utils.toEnglishNumber(pageNum)}/${Utils.toEnglishNumber(totalPages)}`;
+                    return pageHtml + `<div class="doc__pagenum">${DocRenderer.escapeHtml(pageLabelText)}</div>`;
+                });
+
+                // Rasterizing is mostly the browser's layout/paint work, not
+                // JS execution, so a handful of pages can be rasterized
+                // concurrently (each in its own offscreen node) and the
+                // browser will parallelize the actual painting across
+                // cores. Batch size of 3 balances that speedup against
+                // memory — each in-flight canvas can be several MB, so
+                // rendering everything at once on a 100+ page document
+                // risks running out of memory.
+                const BATCH_SIZE = 3;
+                for (let batchStart = 0; batchStart < finalPageHtmlList.length; batchStart += BATCH_SIZE) {
+                    const batch = finalPageHtmlList.slice(batchStart, batchStart + BATCH_SIZE);
+                    const canvases = await rasterizePageBatch(batch, widthPx, heightPx, state.settings.pageColor);
+                    for (let j = 0; j < canvases.length; j++) {
+                        const i = batchStart + j;
+                        const canvas = canvases[j];
+                        // PNG is lossless — unlike JPEG it doesn't blur or add
+                        // artifacts around sharp text edges/borders, which is
+                        // what a question paper mostly consists of. File size
+                        // is larger than the old JPEG output, but text (Bangla
+                        // in particular) comes out sharp instead of soft.
+                        const imgData = canvas.toDataURL('image/png');
+                        const renderedHeightMm = (canvas.height / canvas.width) * dims.w;
+                        releaseCanvas(canvas);
+                        if (i > 0) pdf.addPage(unitFormat, 'portrait');
+                        pdf.addImage(imgData, 'PNG', 0, 0, dims.w, Math.min(renderedHeightMm, dims.h), undefined, 'FAST');
                     }
-                    const canvas = await rasterizePage(pageHtml, widthPx, heightPx, state.settings.pageColor);
-                    // 0.8 keeps text/borders fully crisp — quality above this
-                    // mostly captures noise/artifacts a text document doesn't
-                    // have — while shrinking the in-memory image string and
-                    // final file size meaningfully over long documents.
-                    const imgData = canvas.toDataURL('image/jpeg', 0.8);
-                    const renderedHeightMm = (canvas.height / canvas.width) * dims.w;
-                    releaseCanvas(canvas);
-                    if (i > 0) pdf.addPage(unitFormat, 'portrait');
-                    pdf.addImage(imgData, 'JPEG', 0, 0, dims.w, Math.min(renderedHeightMm, dims.h), undefined, 'FAST');
-                    // Every few pages, yield a tick back to the browser so it
-                    // gets a real chance to garbage-collect the buffers we've
-                    // already released, instead of hundreds of pages piling
-                    // up back-to-back with no gap for cleanup to run.
-                    if (i > 0 && i % 5 === 0) {
-                        await new Promise(resolve => setTimeout(resolve, 0));
-                    }
+                    // Yield a tick back to the browser between batches so it
+                    // gets a real chance to garbage-collect the buffers
+                    // already released, instead of the whole document's
+                    // worth of canvases piling up with no gap for cleanup.
+                    await new Promise(resolve => setTimeout(resolve, 0));
                 }
                 return pdf;
             }
@@ -5435,12 +5479,18 @@ Rules:
                 // has had a chance to render and settle, so a later Download
                 // click is fast rather than waiting on a fresh network
                 // fetch. requestIdleCallback yields to anything more urgent
-                // (typing, scrolling); the setTimeout fallback covers
-                // browsers without it.
+                // (typing, scrolling) and fires as soon as the browser is
+                // actually idle — the timeout below is just a worst-case
+                // cap forcing it to run even if the browser never reports
+                // idle. Lowered from 4000/2000ms: initial render/layout is
+                // done well before that on virtually any device, so the
+                // longer caps were just delaying the prefetch for no
+                // benefit and making the first download of a session pay
+                // more of the library's network cost.
                 if (window.requestIdleCallback) {
-                    requestIdleCallback(() => PdfGen.prefetchLibsInBackground(), { timeout: 4000 });
+                    requestIdleCallback(() => PdfGen.prefetchLibsInBackground(), { timeout: 1500 });
                 } else {
-                    setTimeout(() => PdfGen.prefetchLibsInBackground(), 2000);
+                    setTimeout(() => PdfGen.prefetchLibsInBackground(), 800);
                 }
             }
             document.addEventListener('DOMContentLoaded', init);
