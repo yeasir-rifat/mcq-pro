@@ -3895,7 +3895,7 @@
             // previous 2.83x (~270 DPI), which matters most on long
             // documents (100s of questions) where every page's canvas adds
             // up.
-            const PDF_RENDER_DPI_SCALE = 2.5;
+            const PDF_RENDER_DPI_SCALE = 2.0;
 
             // html2canvas / jsPDF / JSZip are large (combined, noticeably
             // heavier than the rest of the app's JS) and only needed once
@@ -3986,7 +3986,14 @@
                     backgroundColor: pageColor || '#FFFFFF',
                     width: widthPx,
                     height: actualHeight,
-                    windowWidth: widthPx
+                    windowWidth: widthPx,
+                    // Question papers here are text-only (no images), so
+                    // html2canvas has nothing to wait on. The default
+                    // 15000ms timeout only matters when an <img> is present
+                    // and slow/broken; a short cap avoids ever stalling a
+                    // page on that path without affecting text-only pages
+                    // at all.
+                    imageTimeout: 2000
                 });
                 document.body.removeChild(node);
                 return canvas;
@@ -4060,11 +4067,13 @@
                 // JS execution, so a handful of pages can be rasterized
                 // concurrently (each in its own offscreen node) and the
                 // browser will parallelize the actual painting across
-                // cores. Batch size of 3 balances that speedup against
+                // cores. Batch size of 4 balances that speedup against
                 // memory — each in-flight canvas can be several MB, so
                 // rendering everything at once on a 100+ page document
-                // risks running out of memory.
-                const BATCH_SIZE = 3;
+                // risks running out of memory. (Raised from 3: these
+                // documents are text-only, no images, so each canvas is
+                // lighter and a larger batch is safe.)
+                const BATCH_SIZE = 4;
                 for (let batchStart = 0; batchStart < finalPageHtmlList.length; batchStart += BATCH_SIZE) {
                     const batch = finalPageHtmlList.slice(batchStart, batchStart + BATCH_SIZE);
                     const canvases = await rasterizePageBatch(batch, widthPx, heightPx, state.settings.pageColor);
