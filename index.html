@@ -6,21 +6,27 @@
     <title>MCQ Pro - AI Powered MCQ Generator</title>
 
     <!-- Google Fonts -->
+    <!-- Weight 300 removed: the CSS below never applies font-weight:300
+         anywhere, so this trims ~20% off the font payload with zero visual
+         change. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Hind+Siliguri:wght@300;400;500;600;700&family=Noto+Serif+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Serif+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js">
+    <!-- Lucide Icons + DOMPurify: needed for the very first render (icons)
+         and for every keystroke while editing (sanitization), so they load
+         eagerly — but `defer` lets the browser keep parsing the HTML/CSS
+         below instead of blocking on the network fetch. -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer>
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" defer>
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js">
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js">
-    </script>
+
+    <!-- html2canvas / jsPDF / JSZip are only needed when the user actually
+         clicks Download — loading them on every page visit blocks initial
+         render for functionality most visits never use. They're now loaded
+         on demand by PdfGen.ensureLibsLoaded() the first time a download is
+         requested, and cached in the browser after that. -->
 
     <style>
         /* ===== ROOT – Webflow Blue (#146EF5) ===== */
@@ -534,6 +540,74 @@
             background: var(--border);
             margin: 0 2px;
             flex-shrink: 0;
+        }
+
+        /* ===== DOWNLOAD SPLIT MENU ===== */
+        .download-menu {
+            position: relative;
+            display: inline-flex;
+        }
+        .download-menu__panel {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            padding: 6px;
+            width: 236px;
+            max-width: calc(100vw - 16px);
+            z-index: 200;
+            animation: rt-panel-in 120ms ease;
+        }
+        .download-menu__panel[hidden] {
+            display: none;
+        }
+        .download-menu__item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 9px 10px;
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-family: var(--font-ui-en);
+            font-size: 13px;
+            text-align: left;
+            transition: background var(--transition);
+        }
+        .download-menu__item:hover,
+        .download-menu__item:focus-visible {
+            background: var(--primary-soft);
+        }
+        .download-menu__item i {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            color: var(--text-secondary);
+        }
+        .download-menu__item-text {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            min-width: 0;
+        }
+        .download-menu__item-title {
+            font-weight: 500;
+            line-height: 1.3;
+        }
+        .download-menu__item-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+        .download-menu__sep {
+            height: 1px;
+            background: var(--border);
+            margin: 5px 2px;
         }
 
         /* ===== AI CAPTURE MODAL ===== */
@@ -2386,9 +2460,27 @@
                             <select id="setPicker" class="set-switch__select"></select>
                         </div>
                         <div class="topbar-actions">
-                            <button type="button" class="icon-btn" id="btnDownload" aria-label="Download PDF" title="Download">
-                                <i data-lucide="download"></i>
-                            </button>
+                            <div class="download-menu" id="downloadMenu">
+                                <button type="button" class="icon-btn" id="btnDownload" aria-label="Download PDF" aria-haspopup="true" aria-expanded="false" title="Download">
+                                    <i data-lucide="download"></i>
+                                </button>
+                                <div class="download-menu__panel" id="downloadMenuPanel" role="menu" hidden>
+                                    <button type="button" class="download-menu__item" id="btnDownloadQuestionsOnly" role="menuitem">
+                                        <i data-lucide="file-text"></i>
+                                        <span class="download-menu__item-text">
+                                            <span class="download-menu__item-title">Question Paper Only</span>
+                                            <span class="download-menu__item-sub">No answers included</span>
+                                        </span>
+                                    </button>
+                                    <button type="button" class="download-menu__item" id="btnDownloadAnswersOnly" role="menuitem">
+                                        <i data-lucide="check-square"></i>
+                                        <span class="download-menu__item-text">
+                                            <span class="download-menu__item-title">Answer Key Only</span>
+                                            <span class="download-menu__item-sub">Just the answers</span>
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
                             <button type="button" class="icon-btn" id="btnSave" aria-label="Save project" title="Save">
                                 <i data-lucide="save"></i>
                             </button>
@@ -3798,7 +3890,58 @@
            PDF GEN
            ================================================================ */
         const PdfGen = (() => {
-            const PDF_RENDER_DPI_SCALE = 2.83;
+            // 2.0x ≈ 192 DPI at CSS 96dpi baseline — sharp enough for print
+            // text while using noticeably less canvas memory than the
+            // previous 2.83x (~270 DPI), which matters most on long
+            // documents (100s of questions) where every page's canvas adds
+            // up.
+            const PDF_RENDER_DPI_SCALE = 2.0;
+
+            // html2canvas / jsPDF / JSZip are large (combined, noticeably
+            // heavier than the rest of the app's JS) and only needed once
+            // the user actually asks to download — loading them eagerly on
+            // every page visit was blocking initial render for
+            // functionality most visits never touch. These are fetched on
+            // demand, once, the first time a download is requested; the
+            // browser caches each script after that, so repeat downloads
+            // in the same session (or a later visit) don't pay this cost
+            // again.
+            const LIB_URLS = {
+                html2canvas: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+                jspdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+                jszip: 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
+            };
+            const loadedScripts = {};
+
+            function loadScriptOnce(key, url) {
+                if (window[key === 'jspdf' ? 'jspdf' : key === 'jszip' ? 'JSZip' : 'html2canvas']) {
+                    return Promise.resolve();
+                }
+                if (loadedScripts[key]) return loadedScripts[key];
+                loadedScripts[key] = new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = url;
+                    script.onload = () => resolve();
+                    script.onerror = () => { delete loadedScripts[key];
+                        reject(new Error(`Failed to load ${key}`)); };
+                    document.head.appendChild(script);
+                });
+                return loadedScripts[key];
+            }
+
+            // Loads whichever of html2canvas/jsPDF/JSZip aren't already
+            // present, in parallel. Safe to call every time before a
+            // download — resolves immediately for anything already loaded
+            // or in flight from a previous call.
+            async function ensureCoreLibsLoaded() {
+                await Promise.all([
+                    loadScriptOnce('html2canvas', LIB_URLS.html2canvas),
+                    loadScriptOnce('jspdf', LIB_URLS.jspdf)
+                ]);
+            }
+            function ensureZipLoaded() {
+                return loadScriptOnce('jszip', LIB_URLS.jszip);
+            }
 
             function checkDependencies() {
                 const missing = [];
@@ -3839,6 +3982,16 @@
                 return canvas;
             }
 
+            // Releases a canvas's backing pixel buffer as soon as we're done
+            // reading it. Browsers don't always reclaim canvas memory
+            // immediately on garbage collection, so shrinking it to 0x0
+            // right after toDataURL() frees the (often multi-megapixel)
+            // buffer sooner — important when generating many pages in a row.
+            function releaseCanvas(canvas) {
+                canvas.width = 0;
+                canvas.height = 0;
+            }
+
             async function generateSinglePdf(questions, setCode, withAnswers) {
                 questions = questions.filter(q => !Utils.isQuestionEmpty(q));
                 const missing = checkDependencies();
@@ -3862,7 +4015,7 @@
                     [DocRenderer.renderFullDocumentHtml(questions, setCode, doc, lang, fontStack, state.settings,
                         withAnswers)];
                 const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: unitFormat });
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: unitFormat, compress: true });
                 const totalPages = pageHtmlList.length;
                 for (let i = 0; i < pageHtmlList.length; i++) {
                     let pageHtml = pageHtmlList[i];
@@ -3874,10 +4027,22 @@
                         pageHtml += `<div class="doc__pagenum">${DocRenderer.escapeHtml(pageLabelText)}</div>`;
                     }
                     const canvas = await rasterizePage(pageHtml, widthPx, heightPx, state.settings.pageColor);
-                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                    // 0.8 keeps text/borders fully crisp — quality above this
+                    // mostly captures noise/artifacts a text document doesn't
+                    // have — while shrinking the in-memory image string and
+                    // final file size meaningfully over long documents.
+                    const imgData = canvas.toDataURL('image/jpeg', 0.8);
                     const renderedHeightMm = (canvas.height / canvas.width) * dims.w;
+                    releaseCanvas(canvas);
                     if (i > 0) pdf.addPage(unitFormat, 'portrait');
                     pdf.addImage(imgData, 'JPEG', 0, 0, dims.w, Math.min(renderedHeightMm, dims.h), undefined, 'FAST');
+                    // Every few pages, yield a tick back to the browser so it
+                    // gets a real chance to garbage-collect the buffers we've
+                    // already released, instead of hundreds of pages piling
+                    // up back-to-back with no gap for cleanup to run.
+                    if (i > 0 && i % 5 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
                 }
                 return pdf;
             }
@@ -3925,75 +4090,67 @@
                 setTimeout(() => URL.revokeObjectURL(url), 4000);
             }
 
-            async function downloadDocument() {
+            // True when the current document would actually produce an answer
+            // key alongside the question paper (i.e. a "both" download exists
+            // and the split-menu choice is meaningful). Used by the UI to
+            // decide whether to show the download menu or just download the
+            // single PDF directly.
+            function hasAnswerKey() {
                 const state = State.get();
+                return anyCorrectAnswerMarked(state.questions);
+            }
+
+            // Downloads only the sets/PDFs, never touching the answer-key
+            // rendering pass at all. This is the low-memory path: at most one
+            // rasterization pass per set instead of two, and no mixed zip.
+            // withAnswers selects whether that single pass renders the
+            // question paper (false) or the answer key (true).
+            async function downloadOneKind(withAnswers) {
+                const state = State.get();
+                const title = state.document.title || 'MCQ_Question_Paper';
+                const baseName = safeFileName(title);
+                const suffix = withAnswers ? '_Answer_Key' : '';
+                const kindLabel = withAnswers ? 'Answer key' : 'Question paper';
+
+                if (state.setCode.enabled && state.generatedSets.length > 1) {
+                    await ensureZipLoaded();
+                    if (!window.JSZip) throw new Error('JSZip failed to load');
+                    const zip = new JSZip();
+                    const uniqueName = makeUniqueNamer();
+                    for (const set of state.generatedSets) {
+                        const setLabel = uniqueName(safeFileName(set.setCode));
+                        const pdf = await generateSinglePdf(set.questions, set.setCode, withAnswers);
+                        zip.file(`${baseName}_Set_${setLabel}${suffix}.pdf`, pdf.output('blob'));
+                    }
+                    const zipBlob = await zip.generateAsync({ type: 'blob' });
+                    downloadBlob(zipBlob, `${baseName}_All_Sets${suffix}.zip`);
+                    App.toast(`${kindLabel} ZIP (all sets) generated successfully`, 'success');
+                } else if (state.setCode.enabled && state.generatedSets.length === 1) {
+                    const set = state.generatedSets[0];
+                    const setLabel = safeFileName(set.setCode);
+                    const pdf = await generateSinglePdf(set.questions, set.setCode, withAnswers);
+                    pdf.save(`${baseName}_Set_${setLabel}${suffix}.pdf`);
+                    App.toast(`${kindLabel} PDF generated successfully`, 'success');
+                } else {
+                    const pdf = await generateSinglePdf(state.questions, null, withAnswers);
+                    pdf.save(`${baseName}${suffix}.pdf`);
+                    App.toast(`${kindLabel} PDF generated successfully`, 'success');
+                }
+            }
+
+            async function runDownload(task) {
                 const btn = document.getElementById('btnDownload');
                 const originalIcon = btn.innerHTML;
                 btn.disabled = true;
                 btn.innerHTML = '<i data-lucide="loader-2" class="ai-spin-icon"></i>';
                 if (window.lucide) lucide.createIcons();
                 try {
+                    await ensureCoreLibsLoaded();
                     const missing = checkDependencies();
                     if (missing.length) { throw new Error(
                             `Required library failed to load: ${missing.join(', ')}. Check your internet connection.`
                             ); }
-                    const title = state.document.title || 'MCQ_Question_Paper';
-                    const baseName = safeFileName(title);
-                    const includeAnswerKey = anyCorrectAnswerMarked(state.questions);
-
-                    if (state.setCode.enabled && state.generatedSets.length > 1) {
-                        if (!window.JSZip) throw new Error('JSZip failed to load');
-                        const zip = new JSZip();
-                        const uniqueName = makeUniqueNamer();
-                        for (const set of state.generatedSets) {
-                            const setLabel = uniqueName(safeFileName(set.setCode));
-                            const pdf = await generateSinglePdf(set.questions, set.setCode, false);
-                            zip.file(`${baseName}_Set_${setLabel}.pdf`, pdf.output('blob'));
-                            if (includeAnswerKey) {
-                                const answerPdf = await generateSinglePdf(set.questions, set.setCode, true);
-                                zip.file(`${baseName}_Set_${setLabel}_Answer_Key.pdf`, answerPdf.output(
-                                    'blob'));
-                            }
-                        }
-                        const zipBlob = await zip.generateAsync({ type: 'blob' });
-                        downloadBlob(zipBlob, `${baseName}_All_Sets.zip`);
-                        App.toast(includeAnswerKey ?
-                            'ZIP with all sets and answer keys generated successfully' :
-                            'ZIP with all sets generated successfully', 'success');
-                    } else if (state.setCode.enabled && state.generatedSets.length === 1) {
-                        const set = state.generatedSets[0];
-                        const setLabel = safeFileName(set.setCode);
-                        const pdf = await generateSinglePdf(set.questions, set.setCode, false);
-                        if (includeAnswerKey) {
-                            if (!window.JSZip) throw new Error('JSZip failed to load');
-                            const answerPdf = await generateSinglePdf(set.questions, set.setCode, true);
-                            const zip = new JSZip();
-                            zip.file(`${baseName}_Set_${setLabel}.pdf`, pdf.output('blob'));
-                            zip.file(`${baseName}_Set_${setLabel}_Answer_Key.pdf`, answerPdf.output(
-                                'blob'));
-                            const zipBlob = await zip.generateAsync({ type: 'blob' });
-                            downloadBlob(zipBlob, `${baseName}_Set_${setLabel}.zip`);
-                            App.toast('ZIP with question paper and answer key generated successfully',
-                                'success');
-                        } else {
-                            pdf.save(`${baseName}_Set_${setLabel}.pdf`);
-                            App.toast('PDF generated successfully', 'success');
-                        }
-                    } else if (includeAnswerKey) {
-                        if (!window.JSZip) throw new Error('JSZip failed to load');
-                        const pdf = await generateSinglePdf(state.questions, null, false);
-                        const answerPdf = await generateSinglePdf(state.questions, null, true);
-                        const zip = new JSZip();
-                        zip.file(`${baseName}.pdf`, pdf.output('blob'));
-                        zip.file(`${baseName}_Answer_Key.pdf`, answerPdf.output('blob'));
-                        const zipBlob = await zip.generateAsync({ type: 'blob' });
-                        downloadBlob(zipBlob, `${baseName}.zip`);
-                        App.toast('ZIP with question paper and answer key generated successfully', 'success');
-                    } else {
-                        const pdf = await generateSinglePdf(state.questions, null, false);
-                        pdf.save(`${baseName}.pdf`);
-                        App.toast('PDF generated successfully', 'success');
-                    }
+                    await task();
                 } catch (err) {
                     console.error('PDF generation failed:', err);
                     App.toast('Unable to generate PDF. Please try again.', 'error');
@@ -4001,8 +4158,34 @@
                     btn.innerHTML = originalIcon;
                     if (window.lucide) lucide.createIcons(); }
             }
-            return { downloadDocument };
+
+            // Downloads only the question paper(s) — no answer-key rendering
+            // pass runs at all, and nothing is zipped together with answers.
+            function downloadQuestionPaperOnly() {
+                return runDownload(() => downloadOneKind(false));
+            }
+
+            // Downloads only the answer key(s) — no question-paper rendering
+            // pass runs at all.
+            function downloadAnswerKeyOnly() {
+                return runDownload(() => downloadOneKind(true));
+            }
+
+            // Exposed so the app can start fetching these in the background
+            // once the page has settled (see App.init), so by the time the
+            // user actually clicks Download the libraries are likely
+            // already cached and the click itself doesn't have to wait on
+            // the network. Failures here are silent — if the prefetch
+            // doesn't finish in time, the normal on-demand load inside
+            // runDownload() still covers it.
+            function prefetchLibsInBackground() {
+                ensureCoreLibsLoaded().catch(() => {});
+                ensureZipLoaded().catch(() => {});
+            }
+
+            return { downloadQuestionPaperOnly, downloadAnswerKeyOnly, hasAnswerKey, prefetchLibsInBackground, ensureZipLoaded };
         })();
+
 
 
         /* ================================================================
@@ -4251,15 +4434,44 @@
            ================================================================ */
         const AiGenerator = (() => {
             const MAX_FILES = 10;
+            // Gemini's inline_data requests (the method this app uses — files
+            // sent directly inside the generateContent JSON body) currently
+            // cap the total request size at 100MB. Base64 encoding inflates
+            // raw file bytes by ~33%, and free-tier keys in particular can
+            // reject requests well before that hard ceiling, so a bit of
+            // headroom is kept and the check runs per-file so a mix of
+            // several files reliably stays inside budget when added together
+            // (checked again below, on the combined total).
+            const MAX_INLINE_TOTAL_MB = 100;
+            const SAFE_TOTAL_BUDGET_MB = 60; // headroom under the 100MB ceiling
+            const BASE64_INFLATION = 1.37;
             // Each entry: { id, name, kind: 'image'|'pdf'|'text', mimeType, data (base64, for image/pdf),
             //               text (extracted plain text, for docx/pptx), thumb (data URL, for images),
-            //               progress (0-100, upload/read progress), done (bool) }
+            //               progress (0-100, upload/read progress), done (bool), rawSizeBytes }
             let capturedFiles = [];
             let customPromptMode = false;
 
             function el(id) { return document.getElementById(id); }
 
             function genId() { return `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`; }
+
+            function formatMb(bytes) { return (bytes / (1024 * 1024)).toFixed(1); }
+
+            // Estimated size this file will occupy inside the Gemini request
+            // once base64-encoded — the number that actually matters for the
+            // inline size ceiling, not the raw file size on disk.
+            function estimatedInlineMb(rawBytes) {
+                return (rawBytes * BASE64_INFLATION) / (1024 * 1024);
+            }
+
+            // Combined estimated inline size of every image/pdf file already
+            // captured — text files (docx/pptx, sent as plain text) don't
+            // count toward this, since they aren't inline_data.
+            function currentInlineMb() {
+                return capturedFiles
+                    .filter(f => (f.kind === 'image' || f.kind === 'pdf') && f.rawSizeBytes)
+                    .reduce((sum, f) => sum + estimatedInlineMb(f.rawSizeBytes), 0);
+            }
 
             function resetStage() {
                 capturedFiles = [];
@@ -4361,9 +4573,13 @@
                 }
             }
 
-            // docx/pptx are ZIP archives of XML - JSZip (already loaded for exports)
-            // lets us pull the raw text out client-side without any extra library.
+            // docx/pptx are ZIP archives of XML - JSZip lets us pull the raw
+            // text out client-side without any extra library. JSZip is now
+            // lazy-loaded (see PdfGen) rather than always present, so it's
+            // fetched here on demand too — this resolves immediately if a
+            // download elsewhere in the session already loaded it.
             async function extractOfficeText(file) {
+                await PdfGen.ensureZipLoaded();
                 if (!window.JSZip) throw new Error('JSZip failed to load');
                 const zip = await JSZip.loadAsync(file);
                 const isPptx = /\.pptx$/i.test(file.name);
@@ -4433,8 +4649,31 @@
                     return;
                 }
 
+                // Images and PDFs are sent as inline_data (base64 inside the
+                // request JSON) — check the size budget before reading the
+                // file at all, so oversized files never even start uploading
+                // and the person gets a clear reason immediately instead of
+                // a vague failure from Gemini after a long wait.
+                if (isImage || isPdf) {
+                    const thisFileMb = estimatedInlineMb(file.size);
+                    if (thisFileMb > SAFE_TOTAL_BUDGET_MB) {
+                        setStatus(
+                            `"${file.name}" is too large (~${formatMb(file.size)}MB). Please use a file under ~${Math.floor(SAFE_TOTAL_BUDGET_MB / BASE64_INFLATION)}MB, or split it into smaller files.`,
+                            'error');
+                        return;
+                    }
+                    const combinedMb = currentInlineMb() + thisFileMb;
+                    if (combinedMb > SAFE_TOTAL_BUDGET_MB) {
+                        setStatus(
+                            `Adding "${file.name}" would push your attached files over the size limit for one request. Remove a file or use smaller ones.`,
+                            'error');
+                        return;
+                    }
+                }
+
                 const kindLabel = isImage ? 'image' : isPdf ? 'pdf' : 'text';
                 const entry = addPlaceholderFile(file.name, kindLabel, file.type);
+                entry.rawSizeBytes = file.size;
 
                 if (isDocx || isPptx) {
                     // JSZip gives no native progress, so ease the ring forward while it works
@@ -4653,7 +4892,7 @@ Rules:
             // has been retired ("no longer available to new users" / 404 NOT_FOUND).
             const FALLBACK_MODELS = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
 
-            async function requestGeneration(model, userPrompt) {
+            async function requestGeneration(model, userPrompt, onUploadProgress) {
                 const settings = Settings.getAiSettings();
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(settings.apiKey)}`;
                 const inlineParts = capturedFiles
@@ -4669,31 +4908,55 @@ Rules:
                     generationConfig: { temperature: 0.4, responseMimeType: 'application/json' }
                 };
 
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
+                // fetch() gives no visibility into how much of the request
+                // body has actually gone out over the network — for a large
+                // inline PDF/image that upload can take a real amount of
+                // time, so XMLHttpRequest is used here instead, since it's
+                // the only way in a browser to get real upload progress
+                // events (upload.onprogress) rather than a static "please
+                // wait" message.
+                return new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', url, true);
+                    xhr.setRequestHeader('Content-Type', 'application/json');
 
-                if (!res.ok) {
-                    let msg = `Request failed (${res.status})`;
-                    let retired = false;
-                    try {
-                        const errJson = await res.json();
-                        if (errJson && errJson.error && errJson.error.message) {
-                            msg = errJson.error.message;
-                            retired = res.status === 404 && /no longer available/i.test(msg);
+                    if (xhr.upload && onUploadProgress) {
+                        xhr.upload.onprogress = (e) => {
+                            if (e.lengthComputable) onUploadProgress(e.loaded / e.total);
+                        };
+                    }
+
+                    xhr.onload = () => {
+                        let json = null;
+                        try { json = JSON.parse(xhr.responseText); } catch (e) { /* handled below */ }
+
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            if (onUploadProgress) onUploadProgress(1);
+                            resolve(json || {});
+                            return;
                         }
-                    } catch (e) {}
-                    const err = new Error(msg);
-                    err.retired = retired;
-                    err.status = res.status;
-                    throw err;
-                }
-                return res.json();
+
+                        let msg = `Request failed (${xhr.status})`;
+                        let retired = false;
+                        if (json && json.error && json.error.message) {
+                            msg = json.error.message;
+                            retired = xhr.status === 404 && /no longer available/i.test(msg);
+                        }
+                        const err = new Error(msg);
+                        err.retired = retired;
+                        err.status = xhr.status;
+                        reject(err);
+                    };
+
+                    xhr.onerror = () => {
+                        reject(new Error('Network error while contacting Gemini. Check your connection and try again.'));
+                    };
+
+                    xhr.send(JSON.stringify(body));
+                });
             }
 
-            async function callGemini(userPrompt) {
+            async function callGemini(userPrompt, onUploadProgress) {
                 const settings = Settings.getAiSettings();
                 if (!settings.apiKey) throw new Error('MISSING_KEY');
                 if (!customPromptMode && !capturedFiles.length) throw new Error('MISSING_IMAGE');
@@ -4707,7 +4970,7 @@ Rules:
 
                 for (const model of modelsToTry) {
                     try {
-                        data = await requestGeneration(model, userPrompt);
+                        data = await requestGeneration(model, userPrompt, onUploadProgress);
                         if (model !== settings.model) {
                             App.toast(`"${settings.model}" is unavailable — used "${model}" instead`, 'default');
                         }
@@ -4800,13 +5063,28 @@ Rules:
                 const userPrompt = el('aiPromptInput').value.trim() || 'Generate MCQ questions from this content.';
                 const btn = el('btnAiGenerate');
                 btn.disabled = true;
-                setStatus(customPromptMode ?
+
+                const hasInlineFiles = capturedFiles.some(f => f.kind === 'image' || f.kind === 'pdf');
+                const baseLabel = customPromptMode ?
                     'Researching the topic and generating questions…' :
                     (capturedFiles.length > 1 ?
                         `Analyzing ${capturedFiles.length} files and generating questions…` :
-                        'Analyzing the file and generating questions…'), 'loading');
+                        'Analyzing the file and generating questions…');
+                setStatus(baseLabel, 'loading');
+
+                // While the request body (which can be a large base64 PDF/
+                // image) is actually being sent, show real upload progress
+                // instead of a static message — this is the part that used
+                // to give no feedback at all for a big file.
+                const onUploadProgress = hasInlineFiles ? (fraction) => {
+                    const pct = Math.round(fraction * 100);
+                    if (pct >= 100) { setStatus(baseLabel, 'loading');
+                        return; }
+                    setStatus(`Uploading to Gemini… ${pct}%`, 'loading');
+                } : null;
+
                 try {
-                    const questions = await callGemini(userPrompt);
+                    const questions = await callGemini(userPrompt, onUploadProgress);
                     const count = insertQuestions(questions);
                     setStatus('');
                     closeModal();
@@ -5040,7 +5318,45 @@ Rules:
             }
 
             function bindDownload() {
-                document.getElementById('btnDownload').addEventListener('click', () => { PdfGen.downloadDocument(); });
+                const btn = document.getElementById('btnDownload');
+                const menu = document.getElementById('downloadMenu');
+                const panel = document.getElementById('downloadMenuPanel');
+
+                function closeMenu() {
+                    panel.hidden = true;
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+                function openMenu() {
+                    panel.hidden = false;
+                    btn.setAttribute('aria-expanded', 'true');
+                }
+
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // No answer key at all: there's only one file to produce,
+                    // so download it immediately instead of opening a menu
+                    // with a single option.
+                    if (!PdfGen.hasAnswerKey()) { PdfGen.downloadQuestionPaperOnly();
+                        return; }
+                    if (panel.hidden) openMenu();
+                    else closeMenu();
+                });
+
+                document.getElementById('btnDownloadQuestionsOnly').addEventListener('click', () => {
+                    closeMenu();
+                    PdfGen.downloadQuestionPaperOnly();
+                });
+                document.getElementById('btnDownloadAnswersOnly').addEventListener('click', () => {
+                    closeMenu();
+                    PdfGen.downloadAnswerKeyOnly();
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!panel.hidden && !menu.contains(e.target)) closeMenu();
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && !panel.hidden) closeMenu();
+                });
             }
 
             function bindLanguageSwitch() {
@@ -5113,6 +5429,18 @@ Rules:
                     }, 200));
                     const containerEl = document.getElementById('previewContainer');
                     if (containerEl) ro.observe(containerEl);
+                }
+
+                // Warm the PDF/zip libraries in the background once the page
+                // has had a chance to render and settle, so a later Download
+                // click is fast rather than waiting on a fresh network
+                // fetch. requestIdleCallback yields to anything more urgent
+                // (typing, scrolling); the setTimeout fallback covers
+                // browsers without it.
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(() => PdfGen.prefetchLibsInBackground(), { timeout: 4000 });
+                } else {
+                    setTimeout(() => PdfGen.prefetchLibsInBackground(), 2000);
                 }
             }
             document.addEventListener('DOMContentLoaded', init);
